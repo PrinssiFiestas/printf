@@ -1,0 +1,9 @@
+tests/build
+build
+.vs
+cscope.out
+tags
+TODO.md
+.vscode
+*debuglog
+playground
