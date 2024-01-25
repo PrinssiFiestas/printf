@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <limits.h>
 
 // Max decimal digits in uintmax_t. Used for allocating itoa char buffers.

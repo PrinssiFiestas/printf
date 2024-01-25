@@ -1,5 +1,9 @@
-#include <gpc/assert.h>
 #include "../src/conversions.c"
+#include <gpc/assert.h>
+
+#if defined(__GNUC__) && defined(__linux__)
+#include <endian.h>
+#endif
 
 // Must be a macro to get correct __LINE__ and __FILE__ for gp_expect()
 #define expect_str(str_a, str_b) \
@@ -8,7 +12,6 @@
     bool is_true = strcmp(_str_a, _str_b) == 0; \
     gp_expect(!!#str_a " equals " #str_b == is_true, (_str_a), (_str_b)); \
 })
-
 
 int main(void)
 {
@@ -39,6 +42,27 @@ int main(void)
         {
             sprintf(buf2, "%x", 745);
             expect_str(pf_xtoa(buf, 745), buf2);
+        }
+    } // gp_suite("Integer conversions");
+
+    // --------------------------------------------------------------------
+    // Testing internals
+
+    gp_suite("Endiannes test");
+    {
+        gp_test("is_little_endian");
+        {
+        #if defined(__GNUC__) && defined(__linux__)
+            #if __BYTE_ORDER == __LITTLE_ENDIAN
+                gp_expect(is_little_endian());
+            #else
+                gp_expect( ! is_little_endian());
+            #endif
+        #else
+            // Uncomment whichever is true in your system
+            //gp_expect(is_little_endian());
+            //gp_expect( ! is_little_endian());
+        #endif
         }
     }
 }

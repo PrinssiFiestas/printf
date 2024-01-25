@@ -73,3 +73,17 @@ char* pf_xtoa(char buf[GP_STATIC MAX_DIGITS], uintmax_t x)
     memset(buf, 0, MAX_DIGITS);
     return pf_xtoa_light(buf, x);
 }
+
+static bool is_little_endian(void)
+{
+    int16_t i16 = 1;
+    int8_t* p   = (int8_t*)&i16;
+    return p[0] == 1;
+}
+
+char* pf_ftoa(char buf[GP_STATIC MAX_DIGITS], double f)
+{
+    (void)f;
+    (void)is_little_endian();
+    return buf;
+}
