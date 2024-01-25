@@ -34,5 +34,11 @@ int main(void)
             sprintf(buf2, "%o", 745);
             expect_str(pf_otoa(buf, 745), buf2);
         }
+
+        gp_test("xtoa");
+        {
+            sprintf(buf2, "%x", 745);
+            expect_str(pf_xtoa(buf, 745), buf2);
+        }
     }
 }

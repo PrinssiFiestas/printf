@@ -55,3 +55,21 @@ char* pf_otoa(char buf[GP_STATIC MAX_DIGITS], uintmax_t x)
     memset(buf, 0, MAX_DIGITS);
     return pf_otoa_light(buf, x);
 }
+
+static char* pf_xtoa_light(char* buf, uintmax_t x)
+{
+    size_t i = 0;
+    while (x) // write all digits from low to high
+    {
+        char digit = (char)(x % 16);
+        buf[i++] = digit <= 9 ? digit + '0' : digit - 10 + 'a';
+        x /= 16;
+    }
+    return str_reverse(i, buf);
+}
+
+char* pf_xtoa(char buf[GP_STATIC MAX_DIGITS], uintmax_t x)
+{
+    memset(buf, 0, MAX_DIGITS);
+    return pf_xtoa_light(buf, x);
+}
