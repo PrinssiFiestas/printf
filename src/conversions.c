@@ -74,16 +74,17 @@ char* pf_xtoa(char buf[GP_STATIC MAX_DIGITS], uintmax_t x)
     return pf_xtoa_light(buf, x);
 }
 
-static bool is_little_endian(void)
+// In some systems floats can have different endiannes than system endiannes.
+static bool little_endian_double(void)
 {
-    int16_t i16 = 1;
-    int8_t* p   = (int8_t*)&i16;
-    return p[0] == 1;
+    double f = -0.0;
+    unsigned char* p = (unsigned char*)&f;
+    return p[0] == 0;
 }
 
 char* pf_ftoa(char buf[GP_STATIC MAX_DIGITS], double f)
 {
     (void)f;
-    (void)is_little_endian();
+    (void)little_endian_double();
     return buf;
 }

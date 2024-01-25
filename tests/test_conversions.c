@@ -1,10 +1,6 @@
 #include "../src/conversions.c"
 #include <gpc/assert.h>
 
-#if defined(__GNUC__) && defined(__linux__)
-#include <endian.h>
-#endif
-
 // Must be a macro to get correct __LINE__ and __FILE__ for gp_expect()
 #define expect_str(str_a, str_b) \
 ({ \
@@ -45,24 +41,22 @@ int main(void)
         }
     } // gp_suite("Integer conversions");
 
-    // --------------------------------------------------------------------
-    // Testing internals
-
-    gp_suite("Endiannes test");
+    gp_suite("Float conversions");
     {
-        gp_test("is_little_endian");
+
+        // ---------- Internal tests ----------- //
+
+        // Change the values for the #if directives to test float endianness.
+        // Note: Endiannes of floats might differ from integer endiannes!
+        #if 0
+        gp_test("Float endiannes");
         {
-        #if defined(__GNUC__) && defined(__linux__)
-            #if __BYTE_ORDER == __LITTLE_ENDIAN
-                gp_expect(is_little_endian());
-            #else
-                gp_expect( ! is_little_endian());
+            #if 1 // little endian
+                gp_expect(little_endian_double());
+            #else // big endian
+                gp_expect( ! little_endian_double());
             #endif
-        #else
-            // Uncomment whichever is true in your system
-            //gp_expect(is_little_endian());
-            //gp_expect( ! is_little_endian());
-        #endif
         }
+        #endif
     }
 }
