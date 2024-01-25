@@ -27,5 +27,12 @@ int main(void)
             expect_str(pf_itoa(buf, 123456), "123456");
             expect_str(pf_itoa(buf, -123456), "-123456");
         }
+
+        char buf2[MAX_DIGITS] = "";
+        gp_test("otoa");
+        {
+            sprintf(buf2, "%o", 745);
+            expect_str(pf_otoa(buf, 745), buf2);
+        }
     }
 }
