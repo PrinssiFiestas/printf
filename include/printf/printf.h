@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <stdarg.h>
 
 // Max decimal digits in uintmax_t. Used for allocating itoa char buffers.
 #if CHAR_BIT == 8

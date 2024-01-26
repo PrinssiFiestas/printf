@@ -1,35 +1,4 @@
-#include <printf/printf.h>
-
-typedef struct PFFormatSpecifier
-{
-    const char* string;     // Pointer to '%', NULL if no format specifier.
-    unsigned string_length; // e.g. 4 for "%.3f"
-
-    union
-    {
-        unsigned any;
-        struct // TODO some lookuptableythingy
-        {
-            bool dash;
-            bool plus;
-            bool space;
-            bool hash;
-            bool zero;
-        };
-    } flag;
-    struct
-    {
-        unsigned width;
-        bool asterisk;
-    } field;
-    struct
-    {
-        unsigned width;
-        bool asterisk;
-    } precision;
-    char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
-    char conversion_format; // any of "csdioxXufFeEaAgGnP"
-} PFFormatSpecifier;
+#include "format_parsing.h"
 
 PFFormatSpecifier
 parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
@@ -41,8 +10,8 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
         while ((fmt.string = strchr(fmt.string, '%')) != NULL
                 && fmt.string[1] == '%') {
             fmt.string += strlen("%%");
-        }
-        if (fmt.string == NULL)
+    }
+    if (fmt.string == NULL)
             return fmt;
     }
 
@@ -52,7 +21,7 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
     // Find all flags if any
     for (const char* flag; (flag = strchr("-+ #0", *c)); c++)
     {
-        switch (*flag) // TODO some lookuptableythingy
+        switch (*flag)
         {
             case '-': fmt.flag.dash  = 1; break;
             case '+': fmt.flag.plus  = 1; break;
@@ -134,7 +103,7 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
     }
 
     fmt.conversion_format = *c;
-    fmt.string_length = c - fmt.string;
+    fmt.string_length = (c + 1/*get to end of string*/) - fmt.string;
 
     return fmt;
 }

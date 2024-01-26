@@ -13,6 +13,8 @@ int main(void)
             const char* _fmt = "%#035.721hhg";
             gp_expect(strncmp(fmt.string, _fmt, fmt.string_length) == 0,
                 ("%.12s", fmt.string));
+
+            gp_expect(fmt.string_length == strlen(_fmt));
         }
 
         gp_test("Flags");

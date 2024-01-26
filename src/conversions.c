@@ -1,4 +1,4 @@
-#include <printf/printf.h>
+#include "conversions.h"
 
 static char* str_reverse(size_t len, char buf[GP_STATIC len])
 {
@@ -82,7 +82,7 @@ static bool little_endian_double(void)
     return p[0] == 0;
 }
 
-// TODO
+// TODO implement. For now, we'll settle with strfromf()
 char* pf_ftoa(char buf[GP_STATIC MAX_DIGITS], double f)
 {
     (void)f;
