@@ -41,7 +41,8 @@ int main(void)
         }
     } // gp_suite("Integer conversions");
 
-    gp_suite("Float conversions");
+    // TODO
+    // gp_suite("Float conversions");
     {
 
         // ---------- Internal tests ----------- //

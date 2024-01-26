@@ -82,6 +82,7 @@ static bool little_endian_double(void)
     return p[0] == 0;
 }
 
+// TODO
 char* pf_ftoa(char buf[GP_STATIC MAX_DIGITS], double f)
 {
     (void)f;
