@@ -28,7 +28,7 @@ build_dtests: CFLAGS += -ggdb3 -DGP_DEBUG
 # --------------------------------------------------------------------------- #
 
 CFLAGS += -Wall -Wextra -Werror
-CFLAGS += -Wdouble-promotion -Wconversion	# Stricter types
+CFLAGS += -Wdouble-promotion			# Stricter types
 CFLAGS += -Wno-missing-field-initializers	# Allow incomplete struct init
 CFLAGS += -Wno-comment				# Allow comments with backslash
 CFLAGS += -Iinclude

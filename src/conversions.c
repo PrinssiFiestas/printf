@@ -16,7 +16,7 @@ static char* pf_utoa_light(char* buf, uintmax_t x)
     size_t i = 0;
     while (x) // write all digits from low to high
     {
-        buf[i++] = (char)(x % 10) + '0';
+        buf[i++] = (char)(x % 10 + '0');
         x /= 10;
     }
     return str_reverse(i, buf);
@@ -44,7 +44,7 @@ static char* pf_otoa_light(char* buf, uintmax_t x)
     size_t i = 0;
     while (x) // write all digits from low to high
     {
-        buf[i++] = (char)(x % 8) + '0';
+        buf[i++] = (char)(x % 8 + '0');
         x /= 8;
     }
     return str_reverse(i, buf);
@@ -62,7 +62,7 @@ static char* pf_xtoa_light(char* buf, uintmax_t x)
     while (x) // write all digits from low to high
     {
         char digit = (char)(x % 16);
-        buf[i++] = digit <= 9 ? digit + '0' : digit - 10 + 'a';
+        buf[i++] = (char)(digit <= 9 ? digit + '0' : digit - 10 + 'a');
         x /= 16;
     }
     return str_reverse(i, buf);

@@ -81,7 +81,7 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
             unsigned digit = 1;
             while (digits)
             {
-                fmt.field.width += num[digits - 1] - '0' * digit;
+                fmt.field.width += (num[digits - 1] - '0') * digit;
                 digit *= 10;
                 digits--;
             }
@@ -91,7 +91,7 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
     // Find precision
     if (*c == '.')
     {
-        c++;
+        c++; // ignore '.'
 
         if (*c == '*')
         {
@@ -110,31 +110,31 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
             unsigned digit = 1;
             while (digits)
             {
-                fmt.precision.width += num[digits - 1] - '0' * digit;
+                fmt.precision.width += (num[digits - 1] - '0') * digit;
                 digit *= 10;
                 digits--;
             }
         }
     }
 
-    // Fund length modifier
+    // Find length modifier
     const char* modifier = strchr("hljztL", *c);
     if (modifier != NULL)
     {
         fmt.length_modifier = *modifier;
         c++;
         if (*modifier == 'h' && *c == 'h') {
-            modifier += 'h';
+            fmt.length_modifier += 'h';
             c++;
         }
         if (*modifier == 'l' && *c == 'l') {
-            modifier += 'l';
+            fmt.length_modifier += 'l';
             c++;
         }
     }
 
     fmt.conversion_format = *c;
-    fmt.string_length = (size_t)(c - fmt.string);
+    fmt.string_length = c - fmt.string;
 
     return fmt;
 }
