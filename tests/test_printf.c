@@ -20,5 +20,14 @@ int main(void)
             pf_sprintf(buf, "blah %s blah", "bloink");
             expect_str(buf, "blah bloink blah");
         }
+
+        gp_test("%d and %i");
+        {
+            pf_sprintf(buf, "blah %d blah", 15);
+            expect_str(buf, "blah 15 blah");
+
+            pf_sprintf(buf, "blah %i blah", -953);
+            expect_str(buf, "blah -953 blah");
+        }
     }
 }

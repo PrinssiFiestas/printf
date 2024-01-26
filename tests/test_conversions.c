@@ -7,30 +7,45 @@ int main(void)
     gp_suite("Integer conversions");
     {
         char buf[MAX_DIGITS] = "";
+        unsigned len = 0;
 
         gp_test("utoa");
         {
-            expect_str(pf_utoa(buf, 1), "1");
-            expect_str(pf_utoa(buf, 12345), "12345");
+            len = pf_utoa(buf, 1);
+            expect_str(buf, "1");
+            gp_expect(len == 1, (len));
+
+            len = pf_utoa(buf, 12345);
+            expect_str(buf, "12345");
+            gp_expect(len == 5, (len));
         }
 
         gp_test("itoa");
         {
-            expect_str(pf_itoa(buf, 123456), "123456");
-            expect_str(pf_itoa(buf, -123456), "-123456");
+            len = pf_itoa(buf, 123456);
+            expect_str(buf, "123456");
+            gp_expect(len == 6, (len));
+
+            len = pf_itoa(buf, -123456);
+            expect_str(buf, "-123456");
+            gp_expect(len == 7, (len));
         }
 
         char buf2[MAX_DIGITS] = "";
         gp_test("otoa");
         {
             sprintf(buf2, "%o", 745);
-            expect_str(pf_otoa(buf, 745), buf2);
+            len = pf_otoa(buf, 745);
+            expect_str(buf, buf2);
+            gp_expect(len == strlen(buf2));
         }
 
         gp_test("xtoa");
         {
             sprintf(buf2, "%x", 745);
-            expect_str(pf_xtoa(buf, 745), buf2);
+            len = pf_xtoa(buf, 745);
+            expect_str(buf, buf2);
+            gp_expect(len == strlen(buf2));
         }
     } // gp_suite("Integer conversions");
 

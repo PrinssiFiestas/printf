@@ -34,6 +34,7 @@ unsigned pf_vsprintf(
 
             case 'd':
             case 'i':
+
                 break;
 
             case 'o':
