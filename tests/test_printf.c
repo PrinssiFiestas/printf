@@ -14,5 +14,11 @@ int main(void)
             pf_sprintf(buf, "blah %c blah", 'x');
             expect_str(buf, "blah x blah");
         }
+
+        gp_test("%s");
+        {
+            pf_sprintf(buf, "blah %s blah", "bloink");
+            expect_str(buf, "blah bloink blah");
+        }
     }
 }

@@ -24,7 +24,13 @@ unsigned pf_vsprintf(
                 break;
 
             case 's':
+            {
+                const char* cstr = va_arg(args, const char*);
+                size_t cstr_len = strlen(cstr);
+                strncpy(out_buf, cstr, cstr_len + sizeof(""));
+                out_buf += cstr_len;
                 break;
+            }
 
             case 'd':
             case 'i':
