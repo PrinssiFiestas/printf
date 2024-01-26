@@ -61,6 +61,20 @@ unsigned pf_xtoa(char* buf, uintmax_t x)
     return i;
 }
 
+unsigned pf_Xtoa(char* buf, uintmax_t x)
+{
+    size_t i = 0;
+    while (x) // write all digits from low to high
+    {
+        char digit = (char)(x % 16);
+        buf[i++] = (char)(digit <= 9 ? digit + '0' : digit - 10 + 'A');
+        x /= 16;
+    }
+    buf[i] = '\0';
+    str_reverse(i, buf);
+    return i;
+}
+
 // ---------------------------------------------------------------------------
 
 // In some systems floats can have different endiannes than system endiannes.

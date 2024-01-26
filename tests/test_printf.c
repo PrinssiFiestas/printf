@@ -5,7 +5,7 @@
 int main(void)
 {
     char buf[256] = "";
-    //char buf_std[256] = "";
+    char buf_std[256] = "";
 
     gp_suite("Basic type conversions");
     {
@@ -28,6 +28,21 @@ int main(void)
 
             pf_sprintf(buf, "blah %i blah", -953);
             expect_str(buf, "blah -953 blah");
+        }
+
+        gp_test("%o, %x, and %X");
+        {
+            pf_sprintf(buf,  "blah %o blah", 384);
+            sprintf(buf_std, "blah %o blah", 384);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "blah %x blah", 0xbeef);
+            sprintf(buf_std, "blah %x blah", 0xbeef);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "blah %X blah", 0xFEED);
+            sprintf(buf_std, "blah %X blah", 0xFEED);
+            expect_str(buf, buf_std);
         }
     }
 }

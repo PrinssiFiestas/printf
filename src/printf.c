@@ -1,5 +1,6 @@
 #include <printf/printf.h>
 #include "format_parsing.h"
+#include "conversions.h"
 
 unsigned pf_vsprintf(
     char out_buf[static 1],
@@ -19,7 +20,7 @@ unsigned pf_vsprintf(
         switch (fmt.conversion_format)
         {
             case 'c':
-                *out_buf = va_arg(args, int);
+                *out_buf = (char)va_arg(args, int);
                 out_buf++;
                 break;
 
@@ -34,17 +35,23 @@ unsigned pf_vsprintf(
 
             case 'd':
             case 'i':
-
+                out_buf += pf_itoa(out_buf, va_arg(args, int));
                 break;
 
             case 'o':
+                out_buf += pf_otoa(out_buf, va_arg(args, unsigned));
                 break;
 
             case 'x':
+                out_buf += pf_xtoa(out_buf, va_arg(args, unsigned));
+                break;
+
             case 'X':
+                out_buf += pf_Xtoa(out_buf, va_arg(args, unsigned));
                 break;
 
             case 'u':
+                out_buf += pf_utoa(out_buf, va_arg(args, unsigned));
                 break;
 
             case 'f':
