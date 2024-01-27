@@ -32,7 +32,7 @@ int main(void)
         gp_test("Precision");
         {
             gp_expect(fmt.precision.width == 721, (fmt.precision.width));
-            gp_expect( ! fmt.precision.asterisk);
+            gp_expect(fmt.precision.option == PF_SOME);
         }
 
         gp_test("Type");

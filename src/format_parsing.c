@@ -64,11 +64,12 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
 
         if (*c == '*')
         {
-            fmt.precision.asterisk = true;
+            fmt.precision.option = PF_ASTERISK;
             c++;
         }
         else
         {
+            fmt.precision.option = PF_SOME;
             const char* num = c;
             unsigned digits = 0;
             do {

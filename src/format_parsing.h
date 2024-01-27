@@ -8,7 +8,7 @@ typedef struct PFFormatSpecifier
     const char* string;     // Pointer to '%', NULL if no format specifier.
     unsigned string_length; // e.g. 4 for "%.3f"
 
-    union
+    union // flag
     {
         unsigned any;
         struct
@@ -20,16 +20,24 @@ typedef struct PFFormatSpecifier
             bool zero;
         };
     } flag;
-    struct
+
+    struct // field
     {
         unsigned width;
         bool asterisk;
     } field;
-    struct
+
+    struct // precision
     {
         unsigned width;
-        bool asterisk;
+        enum // option
+        {
+            PF_NONE,
+            PF_SOME,
+            PF_ASTERISK
+        } option;
     } precision;
+
     char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
     char conversion_format; // any of "csdioxXufFeEaAgGp"
 } PFFormatSpecifier;

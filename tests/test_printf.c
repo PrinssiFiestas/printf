@@ -28,6 +28,10 @@ int main(void)
 
             pf_sprintf(buf, "blah %i blah", -953);
             expect_str(buf, "blah -953 blah");
+
+            pf_sprintf(buf,  "blah %lli blah", -LLONG_MAX + 5);
+            sprintf(buf_std, "blah %lli blah", -LLONG_MAX + 5);
+            expect_str(buf, buf_std);
         }
 
         gp_test("%o, %x, and %X");
@@ -36,12 +40,12 @@ int main(void)
             sprintf(buf_std, "blah %o blah", 384);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "blah %x blah", 0xbeef);
-            sprintf(buf_std, "blah %x blah", 0xbeef);
+            pf_sprintf(buf,  "blah %x blah", 0xfeed);
+            sprintf(buf_std, "blah %x blah", 0xfeed);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "blah %X blah", 0xFEED);
-            sprintf(buf_std, "blah %X blah", 0xFEED);
+            pf_sprintf(buf,  "blah %X blah", 0xBEEF);
+            sprintf(buf_std, "blah %X blah", 0xBEEF);
             expect_str(buf, buf_std);
         }
 
@@ -60,5 +64,9 @@ int main(void)
             expect_str(buf, buf_std);
 
         }
+    } // gp_suite("Basic type conversions");
+
+    //gp_suite("Precision");
+    {
     }
 }

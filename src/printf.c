@@ -35,13 +35,30 @@ unsigned pf_vsprintf(
 
             case 'd':
             case 'i':
-                out_buf += pf_itoa(out_buf, va_arg(args, int));
+            {
+                intmax_t i;
+                switch (fmt.length_modifier)
+                {
+                    case 'l':
+                        i = va_arg(args, long);
+                        break;
+
+                    case 2 * 'l':
+                        i = va_arg(args, long long);
+                        break;
+
+                    default: // rely on integer promotion
+                        i = va_arg(args, int);
+                }
+                out_buf += pf_itoa(out_buf, i);
                 break;
+            }
 
             case 'o':
                 out_buf += pf_otoa(out_buf, va_arg(args, unsigned));
                 break;
 
+            case 'p':
             case 'x':
                 out_buf += pf_xtoa(out_buf, va_arg(args, unsigned));
                 break;
@@ -65,9 +82,6 @@ unsigned pf_vsprintf(
                     va_arg(args, double));
                 break;
             }
-
-            case 'p':
-                break;
 
             // TODO
             // default: // INTERNAL ERROR
