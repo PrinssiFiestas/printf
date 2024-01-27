@@ -40,8 +40,8 @@ int main(void)
             sprintf(buf_std, "blah %o blah", 384);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "blah %x blah", 0xfeed);
-            sprintf(buf_std, "blah %x blah", 0xfeed);
+            pf_sprintf(buf,  "blah %lx blah", 0xfeedl);
+            sprintf(buf_std, "blah %lx blah", 0xfeedl);
             expect_str(buf, buf_std);
 
             pf_sprintf(buf,  "blah %X blah", 0xBEEF);

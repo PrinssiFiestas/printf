@@ -2,6 +2,22 @@
 #include "format_parsing.h"
 #include "conversions.h"
 
+static uintmax_t get_uint(va_list* args, const PFFormatSpecifier fmt)
+{
+    switch (fmt.length_modifier)
+    {
+        case 'l':
+            return va_arg(*args, long);
+
+        case 2 * 'l':
+            return va_arg(*args, long long);
+
+        default: // rely on integer promotion
+            return va_arg(*args, int);
+    }
+}
+
+
 unsigned pf_vsprintf(
     char out_buf[static 1],
     const char format[static 1],
@@ -55,20 +71,20 @@ unsigned pf_vsprintf(
             }
 
             case 'o':
-                out_buf += pf_otoa(out_buf, va_arg(args, unsigned));
+                out_buf += pf_otoa(out_buf, get_uint(&args, fmt));
                 break;
 
             case 'p':
             case 'x':
-                out_buf += pf_xtoa(out_buf, va_arg(args, unsigned));
+                out_buf += pf_xtoa(out_buf, get_uint(&args, fmt));
                 break;
 
             case 'X':
-                out_buf += pf_Xtoa(out_buf, va_arg(args, unsigned));
+                out_buf += pf_Xtoa(out_buf, get_uint(&args, fmt));
                 break;
 
             case 'u':
-                out_buf += pf_utoa(out_buf, va_arg(args, unsigned));
+                out_buf += pf_utoa(out_buf, get_uint(&args, fmt));
                 break;
 
             case 'f': case 'F':
@@ -94,6 +110,7 @@ unsigned pf_vsprintf(
     return chars_written;
 }
 
+__attribute__ ((format (printf, 2, 3)))
 unsigned pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
 {
     va_list args;
