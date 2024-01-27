@@ -44,5 +44,21 @@ int main(void)
             sprintf(buf_std, "blah %X blah", 0xFEED);
             expect_str(buf, buf_std);
         }
+
+        gp_test("floats");
+        {
+            pf_sprintf(buf,  "blah %f blah", 124.647);
+            sprintf(buf_std, "blah %f blah", 124.647);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "blah %E blah", -42e6);
+            sprintf(buf_std, "blah %E blah", -42e6);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "blah %g blah", -13.1);
+            sprintf(buf_std, "blah %g blah", -13.1);
+            expect_str(buf, buf_std);
+
+        }
     }
 }

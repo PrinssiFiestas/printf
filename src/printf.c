@@ -54,21 +54,17 @@ unsigned pf_vsprintf(
                 out_buf += pf_utoa(out_buf, va_arg(args, unsigned));
                 break;
 
-            case 'f':
-            case 'F':
+            case 'f': case 'F':
+            case 'e': case 'E':
+            case 'a': case 'A':
+            case 'g': case 'G':
+            {
+                char simplified_fmt[32] = ""; // TODO actually simplify
+                strcpy(simplified_fmt, fmt.string);
+                out_buf += strfromd(out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+                    va_arg(args, double));
                 break;
-
-            case 'e':
-            case 'E':
-                break;
-
-            case 'a':
-            case 'A':
-                break;
-
-            case 'g':
-            case 'G':
-                break;
+            }
 
             case 'p':
                 break;
