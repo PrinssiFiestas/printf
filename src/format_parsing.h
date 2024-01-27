@@ -39,7 +39,7 @@ typedef struct PFFormatSpecifier
     } precision;
 
     char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
-    char conversion_format; // any of "csdioxXufFeEaAgGp"
+    char conversion_format; // any of "csdioxXufFeEaAgGp". 'n' not supported.
 } PFFormatSpecifier;
 
 PFFormatSpecifier

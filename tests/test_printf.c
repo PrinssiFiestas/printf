@@ -26,7 +26,7 @@ int main(void)
             pf_sprintf(buf, "blah %d blah", 15);
             expect_str(buf, "blah 15 blah");
 
-            pf_sprintf(buf, "blah %i blah", -953);
+            pf_sprintf(buf, "blah %ti blah", -953);
             expect_str(buf, "blah -953 blah");
 
             pf_sprintf(buf,  "blah %lli blah", -LLONG_MAX + 5);
@@ -44,8 +44,8 @@ int main(void)
             sprintf(buf_std, "blah %lx blah", 0xfeedl);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "blah %X blah", 0xBEEF);
-            sprintf(buf_std, "blah %X blah", 0xBEEF);
+            pf_sprintf(buf,  "blah %zX blah", 0xBEEF);
+            sprintf(buf_std, "blah %zX blah", 0xBEEF);
             expect_str(buf, buf_std);
         }
 
@@ -68,5 +68,19 @@ int main(void)
 
     //gp_suite("Precision");
     {
+    }
+
+    gp_suite("Misc");
+    {
+        gp_test("Return value");
+        {
+            unsigned chars_written = 0;
+            unsigned chars_written_std = 0;
+
+            chars_written     = pf_sprintf(buf,  "%s blah", "bloink");
+            chars_written_std = sprintf(buf_std, "%s blah", "bloink");
+            gp_expect(chars_written == chars_written_std,
+                (chars_written), (chars_written_std));
+        }
     }
 }

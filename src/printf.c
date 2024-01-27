@@ -12,6 +12,12 @@ static uintmax_t get_uint(va_list* args, const PFFormatSpecifier fmt)
         case 2 * 'l':
             return va_arg(*args, long long);
 
+        case 'z':
+            return va_arg(*args, size_t);
+
+        case 'j':
+            return va_arg(*args, uintmax_t);
+
         default: // rely on integer promotion
             return va_arg(*args, int);
     }
@@ -25,27 +31,34 @@ unsigned pf_vsprintf(
 {
     unsigned chars_written = 0;
 
+    #define update_counters(U) do \
+    { \
+        unsigned _u = U; \
+        chars_written += _u; \
+        out_buf += _u; \
+    } while (0)
+
     // TODO put this in a loop
     {
         PFFormatSpecifier fmt = parse_format_string(format);
         strncpy(out_buf, format, fmt.string - format);
+        update_counters(fmt.string - format);
 
-        out_buf += fmt.string - format;
         format = fmt.string + fmt.string_length;
 
         switch (fmt.conversion_format)
         {
             case 'c':
                 *out_buf = (char)va_arg(args, int);
-                out_buf++;
+                update_counters(1);
                 break;
 
             case 's':
             {
                 const char* cstr = va_arg(args, const char*);
                 size_t cstr_len = strlen(cstr);
-                strncpy(out_buf, cstr, cstr_len + sizeof(""));
-                out_buf += cstr_len;
+                memcpy(out_buf, cstr, cstr_len + sizeof(""));
+                update_counters(cstr_len);
                 break;
             }
 
@@ -63,28 +76,36 @@ unsigned pf_vsprintf(
                         i = va_arg(args, long long);
                         break;
 
+                    case 't':
+                        i = va_arg(args, ptrdiff_t);
+                        break;
+
+                    case 'j':
+                        i = va_arg(args, intmax_t);
+                        break;
+
                     default: // rely on integer promotion
                         i = va_arg(args, int);
                 }
-                out_buf += pf_itoa(out_buf, i);
+                update_counters(pf_itoa(out_buf, i));
                 break;
             }
 
             case 'o':
-                out_buf += pf_otoa(out_buf, get_uint(&args, fmt));
+                update_counters(pf_otoa(out_buf, get_uint(&args, fmt)));
                 break;
 
             case 'p':
             case 'x':
-                out_buf += pf_xtoa(out_buf, get_uint(&args, fmt));
+                update_counters(pf_xtoa(out_buf, get_uint(&args, fmt)));
                 break;
 
             case 'X':
-                out_buf += pf_Xtoa(out_buf, get_uint(&args, fmt));
+                update_counters(pf_Xtoa(out_buf, get_uint(&args, fmt)));
                 break;
 
             case 'u':
-                out_buf += pf_utoa(out_buf, get_uint(&args, fmt));
+                update_counters(pf_utoa(out_buf, get_uint(&args, fmt)));
                 break;
 
             case 'f': case 'F':
@@ -92,22 +113,30 @@ unsigned pf_vsprintf(
             case 'a': case 'A':
             case 'g': case 'G':
             {
-                char simplified_fmt[32] = ""; // TODO actually simplify
+                // TODO actually simplify
+                char simplified_fmt[sizeof("%.llf") + MAX_DIGITS] = "";
                 strcpy(simplified_fmt, fmt.string);
-                out_buf += strfromd(out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-                    va_arg(args, double));
+
+                char lmod = fmt.length_modifier;
+                if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
+                    update_counters(strfroml(
+                        out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+                        va_arg(args, long double)));
+                else
+                    update_counters(strfromd(
+                        out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+                        va_arg(args, double)));
                 break;
             }
-
-            // TODO
-            // default: // INTERNAL ERROR
         }
     }
 
     // Write what's left in format string
     strcpy(out_buf, format);
+    chars_written += strlen(format);
 
     return chars_written;
+    #undef update_counters
 }
 
 __attribute__ ((format (printf, 2, 3)))

@@ -5,8 +5,8 @@
 #include <stdio.h>
 #define __STDC_WANT_IEC_60559_BFP_EXT__
 #include <stdlib.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
