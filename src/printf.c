@@ -222,7 +222,6 @@ unsigned pf_vsprintf(
                 update_counters(write_o(out_buf, &args, fmt));
                 break;
 
-            case 'p': // pointers, maybe handle this later
             case 'x':
                 update_counters(write_x(out_buf, &args, fmt));
                 break;
@@ -234,6 +233,14 @@ unsigned pf_vsprintf(
             case 'u':
                 update_counters(write_u(out_buf, &args, fmt));
                 break;
+
+            case 'p': // lazy inefficien solution but works
+            {
+                uintmax_t u = va_arg(args, uintptr_t);
+                update_counters(
+                    pf_sprintf(out_buf, "%#jx", u));
+                break;
+            }
 
             case 'f': case 'F':
             case 'e': case 'E':

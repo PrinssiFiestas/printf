@@ -49,7 +49,7 @@ int main(void)
             expect_str(buf, buf_std);
         }
 
-        gp_test("floats");
+        gp_test("Floats");
         {
             pf_sprintf(buf,  "blah %f blah", 124.647);
             sprintf(buf_std, "blah %f blah", 124.647);
@@ -63,6 +63,19 @@ int main(void)
             sprintf(buf_std, "blah %g blah", -13.1);
             expect_str(buf, buf_std);
 
+        }
+
+        gp_test("%p");
+        {
+            void* p = (void*)-1;
+            uintptr_t u = (uintptr_t)p;
+            char _buf[MAX_DIGITS];
+            const char* fmt =
+                UINTPTR_MAX == ULLONG_MAX ? "%#llx" :
+                UINTPTR_MAX == ULONG_MAX  ? "%#lx"  : "%#x";
+            sprintf(_buf, fmt, u);
+            pf_sprintf(buf, "%p", p);
+            expect_str(buf, _buf);
         }
     } // gp_suite("Basic type conversions");
 
