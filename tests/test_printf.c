@@ -81,6 +81,11 @@ int main(void)
             chars_written_std = sprintf(buf_std, "%s blah", "bloink");
             gp_expect(chars_written == chars_written_std,
                 (chars_written), (chars_written_std));
+
+            chars_written     = pf_sprintf(buf,  "blah %g", -2./9.);
+            chars_written_std = sprintf(buf_std, "blah %g", -2./9.);
+            gp_expect(chars_written == chars_written_std,
+                (chars_written), (chars_written_std));
         }
     }
 }
