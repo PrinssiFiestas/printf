@@ -66,8 +66,20 @@ int main(void)
         }
     } // gp_suite("Basic type conversions");
 
-    //gp_suite("Precision");
+    gp_suite("Precision");
     {
+        gp_test("Integers");
+        {
+            pf_sprintf(buf,  "%.4u", 3);
+            sprintf(buf_std, "%.4u", 3);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%.24x", 0xd);
+            sprintf(buf_std, "%.24x", 0xd);
+            expect_str(buf, buf_std);
+        }
+
+        // gp_test("Strings");
     }
 
     gp_suite("Misc");

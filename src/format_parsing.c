@@ -72,10 +72,12 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
             fmt.precision.option = PF_SOME;
             const char* num = c;
             unsigned digits = 0;
-            do {
+
+            while ('0' <= *c && *c <= '9')
+            {
                 digits++;
                 c++;
-            } while ('0' <= *c && *c <= '9');
+            }
 
             unsigned digit = 1;
             while (digits)

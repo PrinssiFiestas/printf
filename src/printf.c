@@ -2,7 +2,7 @@
 #include "format_parsing.h"
 #include "conversions.h"
 
-static uintmax_t get_uint(va_list* args, const PFFormatSpecifier fmt)
+static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
     switch (fmt.length_modifier)
     {
@@ -23,6 +23,77 @@ static uintmax_t get_uint(va_list* args, const PFFormatSpecifier fmt)
     }
 }
 
+static unsigned pad_zeroes(
+    char out_buf[static 1],
+    va_list args[static 1], // needed in case of asterisk // TODO
+    const PFFormatSpecifier fmt,
+    unsigned written)
+{
+    (void)args;
+    if (fmt.precision.option != PF_NONE)
+    {
+        if (written < fmt.precision.width)
+        {
+            int diff = fmt.precision.width - written;
+
+            // Make room for zeroes
+            memmove(out_buf + diff, out_buf, written);
+
+            // Write zeroes
+            while (diff > 0)
+            {
+                const char* zeroes = "0000""0000""0000""0000";
+                const int zeroes_len = (int)strlen(zeroes);
+                const int _max = diff >= zeroes_len ?
+                    zeroes_len : diff;
+
+                memcpy(out_buf, zeroes, _max);
+                diff    -= zeroes_len;
+                out_buf += zeroes_len;
+            }
+            written = fmt.precision.width;
+        }
+    }
+    return written;
+}
+
+static unsigned write_o(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    const unsigned written = pf_otoa(out_buf, get_uint(args, fmt));
+    return pad_zeroes(out_buf, args, fmt, written);
+}
+
+static unsigned write_x(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    const unsigned written = pf_xtoa(out_buf, get_uint(args, fmt));
+    return pad_zeroes(out_buf, args, fmt, written);
+}
+
+static unsigned write_X(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    const unsigned written = pf_Xtoa(out_buf, get_uint(args, fmt));
+    return pad_zeroes(out_buf, args, fmt, written);
+}
+
+static unsigned write_u(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    const unsigned written = pf_utoa(out_buf, get_uint(args, fmt));
+    return pad_zeroes(out_buf, args, fmt, written);
+}
+
+// ---------------------------------------------------------------------------
 
 unsigned pf_vsprintf(
     char out_buf[static 1],
@@ -92,20 +163,46 @@ unsigned pf_vsprintf(
             }
 
             case 'o':
-                update_counters(pf_otoa(out_buf, get_uint(&args, fmt)));
+                //update_counters(pf_otoa(out_buf, get_uint(&args, fmt)));
+                update_counters(write_o(out_buf, &args, fmt));
                 break;
 
-            case 'p':
+            case 'p': // pointers, maybe handle this later
             case 'x':
-                update_counters(pf_xtoa(out_buf, get_uint(&args, fmt)));
+                //update_counters(pf_xtoa(out_buf, get_uint(&args, fmt)));
+                update_counters(write_x(out_buf, &args, fmt));
                 break;
 
             case 'X':
-                update_counters(pf_Xtoa(out_buf, get_uint(&args, fmt)));
+                //update_counters(pf_Xtoa(out_buf, get_uint(&args, fmt)));
+                update_counters(write_X(out_buf, &args, fmt));
                 break;
 
             case 'u':
-                update_counters(pf_utoa(out_buf, get_uint(&args, fmt)));
+                //update_counters(pf_utoa(out_buf, get_uint(&args, fmt)));
+                update_counters(write_u(out_buf, &args, fmt));
+                #if 0 //(void)0;
+                unsigned _written = pf_utoa(out_buf, get_uint(&args, fmt));
+                if (fmt.precision.option != PF_NONE) // TODO asterisk
+                {
+                    if (_written < fmt.precision.width)
+                    {
+                        const unsigned diff = fmt.precision.width - _written;
+                        // Make room for zeroes
+                        memmove(out_buf + diff, out_buf, _written);
+                        const char* zeroes = "0000""0000""0000""0000";
+
+                        // Write zeroes
+                        //while (something)
+                        {
+                            const unsigned max16 = diff >= 16 ? 16 : diff;
+                            memcpy(out_buf, zeroes, max16);
+                        }
+                        _written = fmt.precision.width;
+                    }
+                    update_counters(_written);
+                }
+                #endif // 0
                 break;
 
             case 'f': case 'F':
