@@ -68,7 +68,7 @@ int main(void)
 
     gp_suite("Precision");
     {
-        gp_test("Integers");
+        gp_test("Unsigned integers");
         {
             pf_sprintf(buf,  "%.4u", 3);
             sprintf(buf_std, "%.4u", 3);
@@ -77,9 +77,32 @@ int main(void)
             pf_sprintf(buf,  "%.24x", 0xd);
             sprintf(buf_std, "%.24x", 0xd);
             expect_str(buf, buf_std);
+
+            // TODO move these to appropriate suite
+            // pf_sprintf(buf,  "%#.3X", 0xa);
+            // sprintf(buf_std, "%#.3X", 0xa);
+            // expect_str(buf, buf_std);
         }
 
-        // gp_test("Strings");
+        gp_test("Signed integers");
+        {
+            pf_sprintf(buf,  "%.3i", 2);
+            sprintf(buf_std, "%.3i", 2);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%.3i", -2);
+            sprintf(buf_std, "%.3i", -2);
+            expect_str(buf, buf_std);
+        }
+
+        gp_test("Strings");
+        {
+            pf_sprintf(buf, "%.5s", "str");
+            expect_str(buf, "str");
+
+            pf_sprintf(buf, "%.5s", "String loger than 5 chars");
+            expect_str(buf, "Strin");
+        }
     }
 
     gp_suite("Misc");

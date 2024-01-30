@@ -62,8 +62,20 @@ static unsigned write_o(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    const unsigned written = pf_otoa(out_buf, get_uint(args, fmt));
-    return pad_zeroes(out_buf, args, fmt, written);
+    const uintmax_t u = get_uint(args, fmt);
+    const unsigned written = pf_otoa(out_buf, u);
+
+    if (fmt.flag.hash && u > 0)
+    {
+        memmove(out_buf + strlen("0"), out_buf, written);
+        memcpy(out_buf, "0", strlen("0"));
+        return strlen("0") + pad_zeroes(
+            out_buf + strlen("0"),
+            args, fmt,
+            written);
+    }
+    else
+        return pad_zeroes(out_buf, args, fmt, written);
 }
 
 static unsigned write_x(
@@ -71,8 +83,20 @@ static unsigned write_x(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    const unsigned written = pf_xtoa(out_buf, get_uint(args, fmt));
-    return pad_zeroes(out_buf, args, fmt, written);
+    const uintmax_t u = get_uint(args, fmt);
+    const unsigned written = pf_xtoa(out_buf, u);
+
+    if (fmt.flag.hash && u > 0)
+    {
+        memmove(out_buf + strlen("0x"), out_buf, written);
+        memcpy(out_buf, "0x", strlen("0x"));
+        return strlen("0x") + pad_zeroes(
+            out_buf + strlen("0x"),
+            args, fmt,
+            written);
+    }
+    else
+        return pad_zeroes(out_buf, args, fmt, written);
 }
 
 static unsigned write_X(
@@ -80,8 +104,20 @@ static unsigned write_X(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    const unsigned written = pf_Xtoa(out_buf, get_uint(args, fmt));
-    return pad_zeroes(out_buf, args, fmt, written);
+    const uintmax_t u = get_uint(args, fmt);
+    const unsigned written = pf_Xtoa(out_buf, u);
+
+    if (fmt.flag.hash && u > 0)
+    {
+        memmove(out_buf + strlen("0X"), out_buf, written);
+        memcpy(out_buf, "0X", strlen("0X"));
+        return strlen("0X") + pad_zeroes(
+            out_buf + strlen("0X"),
+            args, fmt,
+            written);
+    }
+    else
+        return pad_zeroes(out_buf, args, fmt, written);
 }
 
 static unsigned write_u(
@@ -89,7 +125,8 @@ static unsigned write_u(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    const unsigned written = pf_utoa(out_buf, get_uint(args, fmt));
+    uintmax_t u = get_uint(args, fmt);
+    const unsigned written = pf_utoa(out_buf, u);
     return pad_zeroes(out_buf, args, fmt, written);
 }
 
@@ -128,7 +165,12 @@ unsigned pf_vsprintf(
             {
                 const char* cstr = va_arg(args, const char*);
                 size_t cstr_len = strlen(cstr);
-                memcpy(out_buf, cstr, cstr_len + sizeof(""));
+                if (fmt.precision.option != PF_NONE)
+                {
+                    if (fmt.precision.width < cstr_len)
+                        cstr_len = fmt.precision.width;
+                }
+                memcpy(out_buf, cstr, cstr_len);
                 update_counters(cstr_len);
                 break;
             }
@@ -158,51 +200,39 @@ unsigned pf_vsprintf(
                     default: // rely on integer promotion
                         i = va_arg(args, int);
                 }
-                update_counters(pf_itoa(out_buf, i));
+
+
+                unsigned i_written = pf_itoa(out_buf, i);
+
+                if (i < 0)
+                {
+                    i_written = strlen("-") + pad_zeroes(
+                        out_buf + strlen("-"),
+                        &args, fmt,
+                        i_written - strlen("-"));
+                }
+                else
+                    i_written = pad_zeroes(out_buf, &args, fmt, i_written);
+
+                update_counters(i_written);
                 break;
             }
 
             case 'o':
-                //update_counters(pf_otoa(out_buf, get_uint(&args, fmt)));
                 update_counters(write_o(out_buf, &args, fmt));
                 break;
 
             case 'p': // pointers, maybe handle this later
             case 'x':
-                //update_counters(pf_xtoa(out_buf, get_uint(&args, fmt)));
                 update_counters(write_x(out_buf, &args, fmt));
                 break;
 
             case 'X':
-                //update_counters(pf_Xtoa(out_buf, get_uint(&args, fmt)));
                 update_counters(write_X(out_buf, &args, fmt));
                 break;
 
             case 'u':
-                //update_counters(pf_utoa(out_buf, get_uint(&args, fmt)));
                 update_counters(write_u(out_buf, &args, fmt));
-                #if 0 //(void)0;
-                unsigned _written = pf_utoa(out_buf, get_uint(&args, fmt));
-                if (fmt.precision.option != PF_NONE) // TODO asterisk
-                {
-                    if (_written < fmt.precision.width)
-                    {
-                        const unsigned diff = fmt.precision.width - _written;
-                        // Make room for zeroes
-                        memmove(out_buf + diff, out_buf, _written);
-                        const char* zeroes = "0000""0000""0000""0000";
-
-                        // Write zeroes
-                        //while (something)
-                        {
-                            const unsigned max16 = diff >= 16 ? 16 : diff;
-                            memcpy(out_buf, zeroes, max16);
-                        }
-                        _written = fmt.precision.width;
-                    }
-                    update_counters(_written);
-                }
-                #endif // 0
                 break;
 
             case 'f': case 'F':
