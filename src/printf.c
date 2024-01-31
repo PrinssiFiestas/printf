@@ -55,6 +55,48 @@ static unsigned pad_zeroes(
     return written;
 }
 
+static unsigned write_i(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    intmax_t i;
+    switch (fmt.length_modifier)
+    {
+        case 'l':
+            i = va_arg(*args, long);
+            break;
+
+        case 2 * 'l':
+            i = va_arg(*args, long long);
+            break;
+
+        case 't':
+            i = va_arg(*args, ptrdiff_t);
+            break;
+
+        case 'j':
+            i = va_arg(*args, intmax_t);
+            break;
+
+        default: // rely on integer promotion
+            i = va_arg(*args, int);
+    }
+
+    unsigned i_written = pf_itoa(out_buf, i);
+
+    if (i < 0)
+    {
+        i_written = strlen("-") + pad_zeroes(
+            out_buf + strlen("-"), fmt,
+            i_written - strlen("-"));
+    }
+    else
+        i_written = pad_zeroes(out_buf, fmt, i_written);
+
+    return i_written;
+}
+
 static unsigned write_o(
     char out_buf[static 1],
     va_list args[static 1],
@@ -131,7 +173,7 @@ int pf_vsprintf(
 {
     unsigned chars_written = 0;
 
-    #define update_counters(U) do \
+    #define progress(U) do \
     { \
         unsigned _u = U; \
         chars_written += _u; \
@@ -142,7 +184,7 @@ int pf_vsprintf(
     {
         PFFormatSpecifier fmt = parse_format_string(format, &args);
         strncpy(out_buf, format, fmt.string - format);
-        update_counters(fmt.string - format);
+        progress(fmt.string - format);
 
         format = fmt.string + fmt.string_length;
 
@@ -150,7 +192,7 @@ int pf_vsprintf(
         {
             case 'c':
                 *out_buf = (char)va_arg(args, int);
-                update_counters(1);
+                progress(1);
                 break;
 
             case 's':
@@ -172,72 +214,35 @@ int pf_vsprintf(
                     cstr_len = strlen(cstr);
                 }
                 memcpy(out_buf, cstr, cstr_len);
-                update_counters(cstr_len);
+                progress(cstr_len);
                 break;
             }
 
             case 'd':
             case 'i':
-            {
-                intmax_t i;
-                switch (fmt.length_modifier)
-                {
-                    case 'l':
-                        i = va_arg(args, long);
-                        break;
-
-                    case 2 * 'l':
-                        i = va_arg(args, long long);
-                        break;
-
-                    case 't':
-                        i = va_arg(args, ptrdiff_t);
-                        break;
-
-                    case 'j':
-                        i = va_arg(args, intmax_t);
-                        break;
-
-                    default: // rely on integer promotion
-                        i = va_arg(args, int);
-                }
-
-
-                unsigned i_written = pf_itoa(out_buf, i);
-
-                if (i < 0)
-                {
-                    i_written = strlen("-") + pad_zeroes(
-                        out_buf + strlen("-"), fmt,
-                        i_written - strlen("-"));
-                }
-                else
-                    i_written = pad_zeroes(out_buf, fmt, i_written);
-
-                update_counters(i_written);
+                progress(write_i(out_buf, &args, fmt));
                 break;
-            }
 
             case 'o':
-                update_counters(write_o(out_buf, &args, fmt));
+                progress(write_o(out_buf, &args, fmt));
                 break;
 
             case 'x':
-                update_counters(write_x(out_buf, &args, fmt));
+                progress(write_x(out_buf, &args, fmt));
                 break;
 
             case 'X':
-                update_counters(write_X(out_buf, &args, fmt));
+                progress(write_X(out_buf, &args, fmt));
                 break;
 
             case 'u':
-                update_counters(write_u(out_buf, &args, fmt));
+                progress(write_u(out_buf, &args, fmt));
                 break;
 
             case 'p': // lazy solution but works
             {
                 uintmax_t u = va_arg(args, uintptr_t);
-                update_counters(
+                progress(
                     pf_sprintf(out_buf, "%#jx", u));
                 break;
             }
@@ -253,11 +258,11 @@ int pf_vsprintf(
 
                 char lmod = fmt.length_modifier;
                 if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
-                    update_counters(strfroml(
+                    progress(strfroml(
                         out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
                         va_arg(args, long double)));
                 else
-                    update_counters(strfromd(
+                    progress(strfromd(
                         out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
                         va_arg(args, double)));
                 break;

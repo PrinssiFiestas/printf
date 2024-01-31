@@ -94,11 +94,6 @@ int main(void)
             pf_sprintf(buf,  "%.*X", 3, 0XD);
             sprintf(buf_std, "%.*X", 3, 0XD);
             expect_str(buf, buf_std);
-
-            // TODO move these to appropriate suite
-            // pf_sprintf(buf,  "%#.3X", 0xa);
-            // sprintf(buf_std, "%#.3X", 0xa);
-            // expect_str(buf, buf_std);
         }
 
         gp_test("Signed integers");
@@ -124,6 +119,20 @@ int main(void)
             expect_str(buf, "Stri");
         }
     } // gp_suite("Precision");
+
+    gp_suite("Flags");
+    {
+        gp_test("#");
+        {
+            pf_sprintf(buf,  "%#x", 0);
+            sprintf(buf_std, "%#x", 0);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%#.3X", 0xa);
+            sprintf(buf_std, "%#.3X", 0xa);
+            expect_str(buf, buf_std);
+        }
+    }
 
     gp_suite("Misc");
     {
