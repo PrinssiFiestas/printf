@@ -128,6 +128,12 @@ int main(void)
             expect_str(buf, "|-2      |");
         }
 
+        gp_test("0: Zero padding");
+        {
+            pf_sprintf(buf, "|%08i|", -1);
+            expect_str(buf, "|-0000001|");
+        }
+
         gp_test("#: Alternative form");
         {
             pf_sprintf(buf,  "%#x", 0);

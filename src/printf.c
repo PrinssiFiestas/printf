@@ -320,6 +320,25 @@ int pf_vsprintf(
                 for (size_t i = 0; i < diff; i++)
                     out_buf[i] = ' ';
             }
+            else if (fmt.flag.zero)
+            {
+                const bool is_negative = (out_buf - written)[0] == '-';
+                const bool has_0x = (out_buf - written)[1] == 'x';
+                const unsigned offset = is_negative ? 1 : has_0x ? 2 : 0;
+                memmove(
+                // Example for printf("%#07x", 0x12)
+                //
+                // 0x12___
+                //      x    <- dest == out_buf - written + diff + offset
+                //   x       <- src  == out_buf - written + offset
+                //   12      <- these go
+                //      12   <- here
+                    out_buf - written + diff + offset,
+                    out_buf - written + offset,
+                    written - offset);
+                for (size_t i = 0; i < diff; i++)
+                    (out_buf - written + offset)[i] = '0';
+            }
             else
             {
                 memmove(out_buf - written + diff, out_buf - written, diff);
@@ -331,7 +350,8 @@ int pf_vsprintf(
         }
 
         chars_written += written;
-    }
+
+}
 
     // Write what's left in format string
     strcpy(out_buf, format);
