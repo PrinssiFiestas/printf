@@ -164,6 +164,65 @@ static unsigned write_u(
     return pad_zeroes(out_buf, fmt, written);
 }
 
+#define progress(U) do \
+{ \
+    unsigned _u = U; \
+    written += _u; \
+    out_buf += _u; \
+} while (0)
+
+static unsigned write_f(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    unsigned written = 0;
+    char simplified_fmt[sizeof("%.llf") + MAX_DIGITS] = "%";
+    const char* ffmt = fmt.string + strcspn(fmt.string, ".aAeEfFgG");
+    memcpy(
+        simplified_fmt + strlen("%"),
+        ffmt,
+        fmt.string + fmt.string_length - ffmt);
+
+    char lmod = fmt.length_modifier;
+    if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
+        progress(strfroml(
+            out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+            va_arg(*args, long double)));
+    else
+        progress(strfromd(
+            out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+            va_arg(*args, double)));
+
+    if (fmt.flag.hash)
+    {
+        bool no_point = ! memchr(out_buf - written, '.', written);
+        unsigned digits_written = 0;
+        for (size_t i = 0; i < written; i++)
+            digits_written += !!strchr("0123456789", (out_buf - written)[i]);
+        const unsigned precision = fmt.precision.option == PF_SOME ?
+            fmt.precision.width :
+            6/*default precision according to C89 standard*/;
+
+        if (no_point) // write point
+        {
+            out_buf[0] = '.';
+            progress(strlen("."));
+        }
+        if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
+            precision > digits_written)
+        {
+            const unsigned diff = precision - digits_written;
+            for (size_t i = 0; i < diff; i++)
+            {
+                out_buf[i] = '0';
+            }
+            progress(diff);
+        }
+    }
+    return written;
+}
+
 // ---------------------------------------------------------------------------
 
 int pf_vsprintf(
@@ -173,26 +232,23 @@ int pf_vsprintf(
 {
     unsigned chars_written = 0;
 
-    #define progress(U) do \
-    { \
-        unsigned _u = U; \
-        chars_written += _u; \
-        out_buf += _u; \
-    } while (0)
-
     // TODO put this in a loop
     {
-        PFFormatSpecifier fmt = parse_format_string(format, &args);
+        const PFFormatSpecifier fmt = parse_format_string(format, &args);
         strncpy(out_buf, format, fmt.string - format);
-        progress(fmt.string - format);
+        chars_written += fmt.string - format;
+        out_buf       += fmt.string - format;
 
         format = fmt.string + fmt.string_length;
+
+        // Number of characters written by converting format specifier
+        unsigned written = 0;
 
         switch (fmt.conversion_format)
         {
             case 'c':
-                *out_buf = (char)va_arg(args, int);
-                progress(1);
+                out_buf[0] = (char)va_arg(args, int);
+                progress(strlen("x"));
                 break;
 
             case 's':
@@ -251,23 +307,10 @@ int pf_vsprintf(
             case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
-            {
-                // TODO actually simplify
-                char simplified_fmt[sizeof("%.llf") + MAX_DIGITS] = "";
-                strcpy(simplified_fmt, fmt.string);
-
-                char lmod = fmt.length_modifier;
-                if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
-                    progress(strfroml(
-                        out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-                        va_arg(args, long double)));
-                else
-                    progress(strfromd(
-                        out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-                        va_arg(args, double)));
+                progress(write_f(out_buf, &args, fmt));
                 break;
-            }
         }
+        chars_written += written;
     }
 
     // Write what's left in format string

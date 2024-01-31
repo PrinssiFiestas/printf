@@ -131,8 +131,20 @@ int main(void)
             pf_sprintf(buf,  "%#.3X", 0xa);
             sprintf(buf_std, "%#.3X", 0xa);
             expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%#.f", 1.0);
+            sprintf(buf_std, "%#.f", 1.0);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%#g", 700.1);
+            sprintf(buf_std, "%#g", 700.1);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%#g", 123456.0);
+            sprintf(buf_std, "%#g", 123456.0);
+            expect_str(buf, buf_std);
         }
-    }
+    } // gp_suite("Flags");
 
     gp_suite("Misc");
     {
