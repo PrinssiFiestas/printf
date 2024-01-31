@@ -313,7 +313,7 @@ int pf_vsprintf(
 
         if (written < fmt.field.width) // add padding
         {
-            unsigned diff = fmt.field.width - written;
+            const unsigned diff = fmt.field.width - written;
 
             if (fmt.flag.dash) // left justified, append padding
             {
@@ -325,24 +325,27 @@ int pf_vsprintf(
                 const bool is_negative = (out_buf - written)[0] == '-';
                 const bool has_0x = (out_buf - written)[1] == 'x';
                 const unsigned offset = is_negative ? 1 : has_0x ? 2 : 0;
+
+                // Make foom for zeroes
                 memmove(
-                // Example for printf("%#07x", 0x12)
+                // printf("%#07x", 0x89)
                 //
-                // 0x12___
+                // 0x89___
                 //      x    <- dest == out_buf - written + diff + offset
                 //   x       <- src  == out_buf - written + offset
-                //   12      <- these go
-                //      12   <- here
+                //   89      <- offset == strlen("0x") == 2 so these go
+                //      89   <- here
                     out_buf - written + diff + offset,
                     out_buf - written + offset,
                     written - offset);
-                for (size_t i = 0; i < diff; i++)
+
+                for (size_t i = 0; i < diff; i++) // fill in zeroes
                     (out_buf - written + offset)[i] = '0';
             }
             else
             {
                 memmove(out_buf - written + diff, out_buf - written, diff);
-                for (size_t i = 0; i < diff; i++)
+                for (size_t i = 0; i < diff; i++) // fill in spaces
                     (out_buf - written)[i] = ' ';
             }
 
