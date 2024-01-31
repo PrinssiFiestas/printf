@@ -43,6 +43,8 @@ typedef struct PFFormatSpecifier
 } PFFormatSpecifier;
 
 PFFormatSpecifier
-parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")]);
+parse_format_string(
+    const char fmt_string[GP_STATIC sizeof("%i")],
+    va_list* asterisks); // optional
 
 #endif // FORMAT_PARSING_H_INCLUDED

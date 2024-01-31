@@ -87,8 +87,12 @@ int main(void)
             sprintf(buf_std, "%.4u", 3);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "%.24x", 0xd);
-            sprintf(buf_std, "%.24x", 0xd);
+            pf_sprintf(buf,  "%.24x", 0xe);
+            sprintf(buf_std, "%.24x", 0xe);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%.*X", 3, 0XD);
+            sprintf(buf_std, "%.*X", 3, 0XD);
             expect_str(buf, buf_std);
 
             // TODO move these to appropriate suite
@@ -115,8 +119,11 @@ int main(void)
 
             pf_sprintf(buf, "%.5s", "String loger than 5 chars");
             expect_str(buf, "Strin");
+
+            pf_sprintf(buf, "%.*s", 4, "String loger than 5 chars");
+            expect_str(buf, "Stri");
         }
-    }
+    } // gp_suite("Precision");
 
     gp_suite("Misc");
     {
@@ -135,5 +142,5 @@ int main(void)
             gp_expect(chars_written == chars_written_std,
                 (chars_written), (chars_written_std));
         }
-    }
+    } // gp_suite("Misc");
 }

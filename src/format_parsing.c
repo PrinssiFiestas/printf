@@ -1,7 +1,9 @@
 #include "format_parsing.h"
 
 PFFormatSpecifier
-parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
+parse_format_string(
+    const char fmt_string[GP_STATIC sizeof("%i")],
+    va_list* va_args)
 {
     PFFormatSpecifier fmt = { fmt_string };
 
@@ -36,6 +38,17 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
         if (*c == '*')
         {
             fmt.field.asterisk = true;
+
+            int width = 0;
+            if (va_args != NULL && (width = va_arg(*va_args, int)) >= 0)
+            {
+                fmt.field.asterisk = false; // prevent recalling va_arg()
+                fmt.field.width = width;
+            }
+            else if (width < 0)
+            {
+                fmt.field.asterisk = false;
+            }
             c++;
         }
         else if ('1' <= *c && *c <= '9') // can't be 0. Leading 0 is a flag.
@@ -65,6 +78,18 @@ parse_format_string(const char fmt_string[GP_STATIC sizeof("%i")])
         if (*c == '*')
         {
             fmt.precision.option = PF_ASTERISK;
+
+            int width = 0;
+            if (va_args != NULL && (width = va_arg(*va_args, int)) >= 0)
+            {
+                fmt.precision.option = PF_SOME;
+                fmt.precision.width = width;
+            }
+            else if (width < 0)
+            {
+                fmt.precision.option = PF_NONE;
+            }
+
             c++;
         }
         else

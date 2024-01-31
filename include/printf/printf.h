@@ -17,11 +17,11 @@
 #define MAX_DIGITS (sizeof(uintmax_t) * 3)
 #else // what kind of crazy system are you running where char is not 8 bits??
 #define MAX_DIGITS ((CHAR_BIT * sizeof(uintmax_t) * 3) / 8)
-#endif
+#endif//
 
-unsigned pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args);
+int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args);
 
 __attribute__ ((format (printf, 2, 3)))
-unsigned pf_sprintf(char buf[static 1], const char fmt[static 1], ...);
+int pf_sprintf(char buf[static 1], const char fmt[static 1], ...);
 
 #endif // PRINTF_H_INCLUDED

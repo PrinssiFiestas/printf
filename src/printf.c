@@ -25,11 +25,9 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 
 static unsigned pad_zeroes(
     char out_buf[static 1],
-    va_list args[static 1], // needed in case of asterisk // TODO
     const PFFormatSpecifier fmt,
     unsigned written)
 {
-    (void)args;
     if (fmt.precision.option != PF_NONE)
     {
         if (written < fmt.precision.width)
@@ -70,12 +68,10 @@ static unsigned write_o(
         memmove(out_buf + strlen("0"), out_buf, written);
         memcpy(out_buf, "0", strlen("0"));
         return strlen("0") + pad_zeroes(
-            out_buf + strlen("0"),
-            args, fmt,
-            written);
+            out_buf + strlen("0"), fmt, written);
     }
     else
-        return pad_zeroes(out_buf, args, fmt, written);
+        return pad_zeroes(out_buf, fmt, written);
 }
 
 static unsigned write_x(
@@ -91,12 +87,10 @@ static unsigned write_x(
         memmove(out_buf + strlen("0x"), out_buf, written);
         memcpy(out_buf, "0x", strlen("0x"));
         return strlen("0x") + pad_zeroes(
-            out_buf + strlen("0x"),
-            args, fmt,
-            written);
+            out_buf + strlen("0x"), fmt, written);
     }
     else
-        return pad_zeroes(out_buf, args, fmt, written);
+        return pad_zeroes(out_buf, fmt, written);
 }
 
 static unsigned write_X(
@@ -112,12 +106,10 @@ static unsigned write_X(
         memmove(out_buf + strlen("0X"), out_buf, written);
         memcpy(out_buf, "0X", strlen("0X"));
         return strlen("0X") + pad_zeroes(
-            out_buf + strlen("0X"),
-            args, fmt,
-            written);
+            out_buf + strlen("0X"), fmt, written);
     }
     else
-        return pad_zeroes(out_buf, args, fmt, written);
+        return pad_zeroes(out_buf, fmt, written);
 }
 
 static unsigned write_u(
@@ -127,12 +119,12 @@ static unsigned write_u(
 {
     uintmax_t u = get_uint(args, fmt);
     const unsigned written = pf_utoa(out_buf, u);
-    return pad_zeroes(out_buf, args, fmt, written);
+    return pad_zeroes(out_buf, fmt, written);
 }
 
 // ---------------------------------------------------------------------------
 
-unsigned pf_vsprintf(
+int pf_vsprintf(
     char out_buf[static 1],
     const char format[static 1],
     va_list args)
@@ -148,7 +140,7 @@ unsigned pf_vsprintf(
 
     // TODO put this in a loop
     {
-        PFFormatSpecifier fmt = parse_format_string(format);
+        PFFormatSpecifier fmt = parse_format_string(format, &args);
         strncpy(out_buf, format, fmt.string - format);
         update_counters(fmt.string - format);
 
@@ -164,11 +156,20 @@ unsigned pf_vsprintf(
             case 's':
             {
                 const char* cstr = va_arg(args, const char*);
-                size_t cstr_len = strlen(cstr);
+                size_t cstr_len;
                 if (fmt.precision.option != PF_NONE)
                 {
-                    if (fmt.precision.width < cstr_len)
-                        cstr_len = fmt.precision.width;
+                    const int width = fmt.precision.option == PF_ASTERISK ?
+                        va_arg(args, int) : fmt.precision.width;
+
+                    if (width >= 0)
+                        cstr_len = width;
+                    else
+                        cstr_len = strlen(cstr);
+                }
+                else
+                {
+                    cstr_len = strlen(cstr);
                 }
                 memcpy(out_buf, cstr, cstr_len);
                 update_counters(cstr_len);
@@ -207,12 +208,11 @@ unsigned pf_vsprintf(
                 if (i < 0)
                 {
                     i_written = strlen("-") + pad_zeroes(
-                        out_buf + strlen("-"),
-                        &args, fmt,
+                        out_buf + strlen("-"), fmt,
                         i_written - strlen("-"));
                 }
                 else
-                    i_written = pad_zeroes(out_buf, &args, fmt, i_written);
+                    i_written = pad_zeroes(out_buf, fmt, i_written);
 
                 update_counters(i_written);
                 break;
@@ -234,7 +234,7 @@ unsigned pf_vsprintf(
                 update_counters(write_u(out_buf, &args, fmt));
                 break;
 
-            case 'p': // lazy inefficien solution but works
+            case 'p': // lazy solution but works
             {
                 uintmax_t u = va_arg(args, uintptr_t);
                 update_counters(
@@ -274,7 +274,7 @@ unsigned pf_vsprintf(
 }
 
 __attribute__ ((format (printf, 2, 3)))
-unsigned pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
+int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
 {
     va_list args;
     va_start(args, fmt);

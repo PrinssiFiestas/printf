@@ -84,7 +84,6 @@ $(DEBUG_OBJS): build/%d.o : src/%.c
 -include $(OBJS:.o=.d)
 -include $(DEBUG_OBJS:.o=.d)
 
-# TODO this includes debug executables as well!
 $(TEST_EXEC): build/test_%$(EXE_EXT) : tests/test_%.c
 	$(CC) $? build/$(TARGET_RELEASE) $(CFLAGS) -o $@
 
