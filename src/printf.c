@@ -310,6 +310,26 @@ int pf_vsprintf(
                 progress(write_f(out_buf, &args, fmt));
                 break;
         }
+
+        if (written < fmt.field.width) // add padding
+        {
+            unsigned diff = fmt.field.width - written;
+
+            if (fmt.flag.dash) // left justified, append padding
+            {
+                for (size_t i = 0; i < diff; i++)
+                    out_buf[i] = ' ';
+            }
+            else
+            {
+                memmove(out_buf - written + diff, out_buf - written, diff);
+                for (size_t i = 0; i < diff; i++)
+                    (out_buf - written)[i] = ' ';
+            }
+
+            progress(diff);
+        }
+
         chars_written += written;
     }
 

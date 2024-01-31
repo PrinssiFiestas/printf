@@ -122,7 +122,13 @@ int main(void)
 
     gp_suite("Flags");
     {
-        gp_test("#");
+        gp_test("-: Left justification");
+        {
+            pf_sprintf(buf, "|%-8i|", -2);
+            expect_str(buf, "|-2      |");
+        }
+
+        gp_test("#: Alternative form");
         {
             pf_sprintf(buf,  "%#x", 0);
             sprintf(buf_std, "%#x", 0);
@@ -145,6 +151,15 @@ int main(void)
             expect_str(buf, buf_std);
         }
     } // gp_suite("Flags");
+
+    gp_suite("Fields");
+    {
+        gp_test("Basic field");
+        {
+            pf_sprintf(buf, "|%#8x|", 0x3);
+            expect_str(buf, "|     0x3|");
+        }
+    }
 
     gp_suite("Misc");
     {
