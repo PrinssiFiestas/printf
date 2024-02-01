@@ -91,6 +91,14 @@ static unsigned write_i(
             out_buf + strlen("-"), fmt,
             i_written - strlen("-"));
     }
+    else if (fmt.flag.plus)
+    {
+        memmove(out_buf + strlen("+"), out_buf, i_written);
+        out_buf[0] = '+';
+        i_written = strlen("+") + pad_zeroes(
+            out_buf + strlen("+"), fmt,
+            i_written);
+    }
     else
         i_written = pad_zeroes(out_buf, fmt, i_written);
 
@@ -194,6 +202,13 @@ static unsigned write_f(
             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
             va_arg(*args, double)));
 
+    if (fmt.flag.plus && (out_buf - written)[0] != '-') // write plus if positive
+    {
+        memmove(out_buf - written + strlen("+"), out_buf - written, written);
+        (out_buf - written)[0] = '+';
+        progress(strlen("+"));
+    }
+
     if (fmt.flag.hash)
     {
         bool no_point = ! memchr(out_buf - written, '.', written);
@@ -210,7 +225,7 @@ static unsigned write_f(
             progress(strlen("."));
         }
         if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
-            precision > digits_written)
+            precision > digits_written) // write trailing zeroes
         {
             const unsigned diff = precision - digits_written;
             for (size_t i = 0; i < diff; i++)
