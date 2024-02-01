@@ -28,29 +28,26 @@ static unsigned pad_zeroes(
     const PFFormatSpecifier fmt,
     unsigned written)
 {
-    if (fmt.precision.option != PF_NONE)
+    if (fmt.precision.option != PF_NONE && written < fmt.precision.width)
     {
-        if (written < fmt.precision.width)
+        int diff = fmt.precision.width - written;
+
+        // Make room for zeroes
+        memmove(out_buf + diff, out_buf, written);
+
+        // Write zeroes
+        while (diff > 0)
         {
-            int diff = fmt.precision.width - written;
+            const char* zeroes = "0000""0000""0000""0000";
+            const int zeroes_len = (int)strlen(zeroes);
+            const int _max = diff >= zeroes_len ?
+                zeroes_len : diff;
 
-            // Make room for zeroes
-            memmove(out_buf + diff, out_buf, written);
-
-            // Write zeroes
-            while (diff > 0)
-            {
-                const char* zeroes = "0000""0000""0000""0000";
-                const int zeroes_len = (int)strlen(zeroes);
-                const int _max = diff >= zeroes_len ?
-                    zeroes_len : diff;
-
-                memcpy(out_buf, zeroes, _max);
-                diff    -= zeroes_len;
-                out_buf += zeroes_len;
-            }
-            written = fmt.precision.width;
+            memcpy(out_buf, zeroes, _max);
+            diff    -= zeroes_len;
+            out_buf += zeroes_len;
         }
+        written = fmt.precision.width;
     }
     return written;
 }
@@ -87,22 +84,21 @@ static unsigned write_i(
 
     if (i < 0)
     {
-        i_written = strlen("-") + pad_zeroes(
+        return strlen("-") + pad_zeroes(
             out_buf + strlen("-"), fmt,
             i_written - strlen("-"));
     }
     else if (fmt.flag.plus || fmt.flag.space)
     {
-        memmove(out_buf + strlen("+"), out_buf, i_written);
+        memmove(out_buf + strlen("+"), out_buf, i_written); // make room for plus
         out_buf[0] = fmt.flag.plus ? '+' : ' ';
-        i_written = strlen("+") + pad_zeroes(
+
+        return strlen("+") + pad_zeroes(
             out_buf + strlen("+"), fmt,
             i_written);
     }
     else
-        i_written = pad_zeroes(out_buf, fmt, i_written);
-
-    return i_written;
+        return pad_zeroes(out_buf, fmt, i_written);
 }
 
 static unsigned write_o(
@@ -117,6 +113,7 @@ static unsigned write_o(
     {
         memmove(out_buf + strlen("0"), out_buf, written);
         memcpy(out_buf, "0", strlen("0"));
+
         return strlen("0") + pad_zeroes(
             out_buf + strlen("0"), fmt, written);
     }
@@ -136,6 +133,7 @@ static unsigned write_x(
     {
         memmove(out_buf + strlen("0x"), out_buf, written);
         memcpy(out_buf, "0x", strlen("0x"));
+
         return strlen("0x") + pad_zeroes(
             out_buf + strlen("0x"), fmt, written);
     }
@@ -155,6 +153,7 @@ static unsigned write_X(
     {
         memmove(out_buf + strlen("0X"), out_buf, written);
         memcpy(out_buf, "0X", strlen("0X"));
+
         return strlen("0X") + pad_zeroes(
             out_buf + strlen("0X"), fmt, written);
     }
@@ -172,12 +171,12 @@ static unsigned write_u(
     return pad_zeroes(out_buf, fmt, written);
 }
 
-#define progress(U) do \
-{ \
-    unsigned _u = U; \
-    written += _u; \
-    out_buf += _u; \
-} while (0)
+static inline void
+progress(char* out_buf[static 1], unsigned written[static 1],unsigned u)
+{
+    *written += u;
+    *out_buf += u;
+};
 
 static unsigned write_f(
     char out_buf[static 1],
@@ -185,6 +184,9 @@ static unsigned write_f(
     const PFFormatSpecifier fmt)
 {
     unsigned written = 0;
+
+    // strfromd() doesn't take flags or field width so fmt.string needs to be
+    // trimmed.
     char simplified_fmt[sizeof("%.llf") + MAX_DIGITS] = "%";
     const char* ffmt = fmt.string + strcspn(fmt.string, ".aAeEfFgG");
     memcpy(
@@ -194,11 +196,11 @@ static unsigned write_f(
 
     char lmod = fmt.length_modifier;
     if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
-        progress(strfroml(
+        progress(&out_buf, &written, strfroml(
             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
             va_arg(*args, long double)));
     else
-        progress(strfromd(
+        progress(&out_buf, &written, strfromd(
             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
             va_arg(*args, double)));
 
@@ -207,7 +209,7 @@ static unsigned write_f(
     {
         memmove(out_buf - written + strlen("+"), out_buf - written, written);
         (out_buf - written)[0] = fmt.flag.plus ? '+' : ' ';
-        progress(strlen("+"));
+        progress(&out_buf, &written, strlen("+"));
     }
 
     if (fmt.flag.hash)
@@ -223,7 +225,7 @@ static unsigned write_f(
         if (no_point) // write point
         {
             out_buf[0] = '.';
-            progress(strlen("."));
+            progress(&out_buf, &written, strlen("."));
         }
         if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
             precision > digits_written) // write trailing zeroes
@@ -233,7 +235,7 @@ static unsigned write_f(
             {
                 out_buf[i] = '0';
             }
-            progress(diff);
+            progress(&out_buf, &written, diff);
         }
     }
     return written;
@@ -267,7 +269,7 @@ int pf_vsprintf(
         {
             case 'c':
                 out_buf[0] = (char)va_arg(args, int);
-                progress(strlen("x"));
+                progress(&out_buf, &written, strlen("x"));
                 break;
 
             case 's':
@@ -289,35 +291,35 @@ int pf_vsprintf(
                     cstr_len = strlen(cstr);
                 }
                 memcpy(out_buf, cstr, cstr_len);
-                progress(cstr_len);
+                progress(&out_buf, &written, cstr_len);
                 break;
             }
 
             case 'd':
             case 'i':
-                progress(write_i(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_i(out_buf, &args, fmt));
                 break;
 
             case 'o':
-                progress(write_o(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_o(out_buf, &args, fmt));
                 break;
 
             case 'x':
-                progress(write_x(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_x(out_buf, &args, fmt));
                 break;
 
             case 'X':
-                progress(write_X(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_X(out_buf, &args, fmt));
                 break;
 
             case 'u':
-                progress(write_u(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_u(out_buf, &args, fmt));
                 break;
 
             case 'p': // lazy solution but works
             {
                 uintmax_t u = va_arg(args, uintptr_t);
-                progress(
+                progress(&out_buf, &written,
                     pf_sprintf(out_buf, "%#jx", u));
                 break;
             }
@@ -326,7 +328,7 @@ int pf_vsprintf(
             case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
-                progress(write_f(out_buf, &args, fmt));
+                progress(&out_buf, &written, write_f(out_buf, &args, fmt));
                 break;
         }
 
@@ -368,7 +370,7 @@ int pf_vsprintf(
                     (out_buf - written)[i] = ' ';
             }
 
-            progress(diff);
+            progress(&out_buf, &written, diff);
         }
 
         chars_written += written;
@@ -379,7 +381,6 @@ int pf_vsprintf(
     chars_written += strlen(format);
 
     return chars_written;
-    #undef update_counters
 }
 
 __attribute__ ((format (printf, 2, 3)))
