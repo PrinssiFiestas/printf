@@ -91,10 +91,10 @@ static unsigned write_i(
             out_buf + strlen("-"), fmt,
             i_written - strlen("-"));
     }
-    else if (fmt.flag.plus)
+    else if (fmt.flag.plus || fmt.flag.space)
     {
         memmove(out_buf + strlen("+"), out_buf, i_written);
-        out_buf[0] = '+';
+        out_buf[0] = fmt.flag.plus ? '+' : ' ';
         i_written = strlen("+") + pad_zeroes(
             out_buf + strlen("+"), fmt,
             i_written);
@@ -202,10 +202,11 @@ static unsigned write_f(
             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
             va_arg(*args, double)));
 
-    if (fmt.flag.plus && (out_buf - written)[0] != '-') // write plus if positive
+    if ((fmt.flag.plus || fmt.flag.space)
+        && (out_buf - written)[0] != '-') // write plus or space if positive
     {
         memmove(out_buf - written + strlen("+"), out_buf - written, written);
-        (out_buf - written)[0] = '+';
+        (out_buf - written)[0] = fmt.flag.plus ? '+' : ' ';
         progress(strlen("+"));
     }
 

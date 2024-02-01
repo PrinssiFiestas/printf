@@ -128,13 +128,22 @@ int main(void)
             expect_str(buf, "|-2      |");
         }
 
-        gp_test("+: Add sign to signed positives");
+        gp_test("+: Add plus to signed positives");
         {
             pf_sprintf(buf, "%+i", 35);
             expect_str(buf, "+35");
 
             pf_sprintf(buf, "%+g", 1.41);
             expect_str(buf, "+1.41");
+        }
+
+        gp_test(" : Add space to signed positives");
+        {
+            pf_sprintf(buf, "% i", 35);
+            expect_str(buf, " 35");
+
+            pf_sprintf(buf, "% g", 1.41);
+            expect_str(buf, " 1.41");
         }
 
         gp_test("0: Zero padding");
