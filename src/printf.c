@@ -341,11 +341,14 @@ int pf_vsprintf(
                 for (size_t i = 0; i < diff; i++)
                     out_buf[i] = ' ';
             }
-            else if (fmt.flag.zero)
+            else if (fmt.flag.zero) // 0-padding minding "0x" or "-" prefix
             {
-                const bool is_negative = (out_buf - written)[0] == '-';
-                const bool has_0x = (out_buf - written)[1] == 'x';
-                const unsigned offset = is_negative ? 1 : has_0x ? 2 : 0;
+                const bool has_sign =
+                    (out_buf - written)[0] == '-' ||
+                    (out_buf - written)[0] == '+' ||
+                    (out_buf - written)[0] == ' '; // space flag: ' ' <=> '+'
+                const bool has_0x   = (out_buf - written)[1] == 'x';
+                const unsigned offset = has_sign ? 1 : has_0x ? 2 : 0;
 
                 // Make foom for zeroes
                 memmove(
@@ -365,7 +368,7 @@ int pf_vsprintf(
             }
             else
             {
-                memmove(out_buf - written + diff, out_buf - written, diff);
+                memmove(out_buf - written + diff, out_buf - written, written);
                 for (size_t i = 0; i < diff; i++) // fill in spaces
                     (out_buf - written)[i] = ' ';
             }

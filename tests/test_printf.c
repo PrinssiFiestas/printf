@@ -209,8 +209,13 @@ int main(void)
             sprintf(buf_std, "blah %f, %#0x", .5, 0x2);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "%.3s, %+i", "bloink", 63);
-            sprintf(buf_std, "%.3s, %+i", "bloink", 63);
+            pf_sprintf(buf,  "%.3s, %+4i", "bloink", 63);
+            sprintf(buf_std, "%.3s, %+4i", "bloink", 63);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "% 04i", 21);
+            sprintf(buf_std, "% 04i", 21);
+            expect_str(buf, buf_std);
         }
 
         gp_test("No format specifier");
