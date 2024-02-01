@@ -248,9 +248,12 @@ int pf_vsprintf(
 {
     unsigned chars_written = 0;
 
-    // TODO put this in a loop
+    while (1)
     {
         const PFFormatSpecifier fmt = parse_format_string(format, &args);
+        if (fmt.string == NULL)
+            break;
+
         strncpy(out_buf, format, fmt.string - format);
         chars_written += fmt.string - format;
         out_buf       += fmt.string - format;
@@ -369,8 +372,7 @@ int pf_vsprintf(
         }
 
         chars_written += written;
-
-}
+    }
 
     // Write what's left in format string
     strcpy(out_buf, format);

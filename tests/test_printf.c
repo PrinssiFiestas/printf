@@ -202,5 +202,21 @@ int main(void)
             gp_expect(chars_written == chars_written_std,
                 (chars_written), (chars_written_std));
         }
+
+        gp_test("Combinations");
+        {
+            pf_sprintf(buf,  "blah %f, %#0x", .5, 0x2);
+            sprintf(buf_std, "blah %f, %#0x", .5, 0x2);
+            expect_str(buf, buf_std);
+
+            pf_sprintf(buf,  "%.3s, %+i", "bloink", 63);
+            sprintf(buf_std, "%.3s, %+i", "bloink", 63);
+        }
+
+        gp_test("No format specifier");
+        {
+            pf_sprintf(buf, "Whatever");
+            expect_str(buf, "Whatever");
+        }
     } // gp_suite("Misc");
 }
