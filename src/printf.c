@@ -7,10 +7,10 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
     switch (fmt.length_modifier)
     {
         case 'l':
-            return va_arg(*args, long);
+            return va_arg(*args, unsigned long);
 
         case 2 * 'l':
-            return va_arg(*args, long long);
+            return va_arg(*args, unsigned long long);
 
         case 'z':
             return va_arg(*args, size_t);
@@ -19,7 +19,7 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
             return va_arg(*args, uintmax_t);
 
         default: // rely on integer promotion
-            return va_arg(*args, int);
+            return va_arg(*args, unsigned);
     }
 }
 

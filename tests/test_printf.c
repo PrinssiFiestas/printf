@@ -266,7 +266,6 @@ int main(void)
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
 
-                fputs(fmt, stderr);
                 if (random_specifier != 's')
                 {
                     pf_sprintf(buf,  fmt, random_bytes);
@@ -372,6 +371,7 @@ const char* random_format(char conversion_type)
     }
 
     fmt[fmt_i] = conversion_type;
+    fmt[fmt_i + 1] = '\0';
     return fmt;
 }
 
