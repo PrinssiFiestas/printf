@@ -266,16 +266,19 @@ int main(void)
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
 
+                int _my_buf_return_value = 0;
+                int buf_std_return_value = 0;
+
                 if (random_specifier != 's')
                 {
-                    pf_sprintf(buf,  fmt, random_bytes);
-                    sprintf(buf_std, fmt, random_bytes);
+                    _my_buf_return_value = pf_sprintf(buf,  fmt, random_bytes);
+                    buf_std_return_value = sprintf(buf_std, fmt, random_bytes);
                 }
                 else // treat random_bytes as string
                 {
                     ((char*)&random_bytes)[sizeof(uintmax_t) - 1] = '\0';
-                    pf_sprintf(buf,  fmt, &random_bytes);
-                    sprintf(buf_std, fmt, &random_bytes);
+                    _my_buf_return_value = pf_sprintf(buf,  fmt, &random_bytes);
+                    buf_std_return_value = sprintf(buf_std, fmt, &random_bytes);
                 }
                 // Rename buf for aligned gp_assert() message
                 const char* _my_buf = buf;
@@ -285,6 +288,9 @@ int main(void)
                     (_my_buf),
                     (buf_std),
                     (iteration));
+
+                gp_assert(_my_buf_return_value == buf_std_return_value,
+                    (_my_buf_return_value), (buf_std_return_value));
             }
         }
     }
