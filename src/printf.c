@@ -256,7 +256,7 @@ int pf_vsprintf(
         if (fmt.string == NULL)
             break;
 
-        strncpy(out_buf, format, fmt.string - format);
+        memcpy(out_buf, format, fmt.string - format);
         chars_written += fmt.string - format;
         out_buf       += fmt.string - format;
 
@@ -276,23 +276,34 @@ int pf_vsprintf(
             case 's':
             {
                 const char* cstr = va_arg(args, const char*);
-                size_t cstr_len;
-                if (fmt.precision.option != PF_NONE)
-                {
-                    const int width = fmt.precision.option == PF_ASTERISK ?
-                        va_arg(args, int) : fmt.precision.width;
 
-                    if (width >= 0)
-                        cstr_len = width;
-                    else
-                        cstr_len = strlen(cstr);
-                }
-                else
-                {
+                size_t cstr_len = 0;
+                if (fmt.precision.option == PF_NONE) // should be null-terminated
                     cstr_len = strlen(cstr);
+                else // who knows if null-terminated
+                    while (cstr_len < fmt.precision.width && cstr[cstr_len] != '\0')
+                        cstr_len++;
+
+                const unsigned field_width = fmt.field.width > cstr_len ?
+                    fmt.field.width : cstr_len;
+                const unsigned diff = field_width - cstr_len;
+                if (fmt.flag.dash) // left justified
+                { // first string, then pad
+                    memcpy(out_buf, cstr, cstr_len);
+                    progress(&out_buf, &written, cstr_len);
+                    for (unsigned i = 0; i < diff; i++)
+                        out_buf[i] = ' ';
+                    progress(&out_buf, &written, diff);
                 }
-                memcpy(out_buf, cstr, cstr_len);
-                progress(&out_buf, &written, cstr_len);
+                else // first pad, then string
+                {
+                    for (unsigned i = 0; i < diff; i++)
+                        out_buf[i] = ' ';
+                    progress(&out_buf, &written, diff);
+                    memcpy(out_buf, cstr, cstr_len);
+                    progress(&out_buf, &written, cstr_len);
+                }
+
                 break;
             }
 
@@ -317,11 +328,24 @@ int pf_vsprintf(
                 progress(&out_buf, &written, write_u(out_buf, &args, fmt));
                 break;
 
-            case 'p': // lazy solution but works
+            case 'p':
             {
-                uintmax_t u = va_arg(args, uintptr_t);
-                progress(&out_buf, &written,
-                    pf_sprintf(out_buf, "%#jx", u));
+                PFFormatSpecifier ptr_fmt = fmt;
+                ptr_fmt.flag.hash = true; // for "0x"
+                switch ((uintmax_t)UINTPTR_MAX)
+                {
+                    case ULLONG_MAX:
+                        ptr_fmt.length_modifier = 2 * 'l';
+                        break;
+
+                    case ULONG_MAX:
+                        ptr_fmt.length_modifier = 'l';
+                        break;
+
+                    default:
+                        ptr_fmt.length_modifier = 0;
+                }
+                progress(&out_buf, &written, write_x(out_buf, &args, ptr_fmt));
                 break;
             }
 
