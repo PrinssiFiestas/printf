@@ -269,6 +269,7 @@ int pf_vsprintf(
         {
             case 'c':
                 out_buf[0] = (char)va_arg(args, int);
+                out_buf[1] = '\0';
                 progress(&out_buf, &written, strlen("x"));
                 break;
 
@@ -329,6 +330,12 @@ int pf_vsprintf(
             case 'a': case 'A':
             case 'g': case 'G':
                 progress(&out_buf, &written, write_f(out_buf, &args, fmt));
+                break;
+
+            case '%':
+                out_buf[0] = '%';
+                out_buf[1] = '\0';
+                progress(&out_buf, &written, strlen("%"));
                 break;
         }
 

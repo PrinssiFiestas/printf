@@ -7,14 +7,15 @@ parse_format_string(
 {
     PFFormatSpecifier fmt = { fmt_string };
 
-    // Find first format specifier in format string ignoring "%%"
-    {
-        while ((fmt.string = strchr(fmt.string, '%')) != NULL
-                && fmt.string[1] == '%') {
-            fmt.string += strlen("%%");
-    }
+    fmt.string = strchr(fmt.string, '%');
     if (fmt.string == NULL)
-            return fmt;
+    {
+        return fmt;
+    }
+    if (fmt.string[1] == '%')
+    {
+        fmt.string_length = 2;
+        fmt.conversion_format = '%';
     }
 
     // Iterator
