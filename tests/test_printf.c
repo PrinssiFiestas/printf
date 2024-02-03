@@ -1,6 +1,8 @@
 #include <gpc/assert.h>
 #include "../src/printf.c"
 #include "expect_str.h"
+#include "pcg_basic.h"
+#include <time.h>
 
 int main(void)
 {
@@ -223,5 +225,148 @@ int main(void)
             pf_sprintf(buf, "Whatever");
             expect_str(buf, "Whatever");
         }
+
+        gp_test("%%");
+        {
+            pf_sprintf(buf, "%% blah");
+            expect_str(buf, "% blah");
+
+            pf_sprintf(buf, "blah %%");
+            expect_str(buf, "blah %");
+
+            pf_sprintf(buf, "bl%%ah");
+            expect_str(buf, "bl%ah");
+        }
     } // gp_suite("Misc");
+
+    gp_suite("Fuzz test");
+    {
+        // Seed RNG with date
+        {
+            time_t t = time(NULL);
+            struct tm* gmt = gmtime(&t);
+            gp_assert(gmt != NULL);
+            pcg32_srandom(gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year);
+        }
+        const unsigned loop_count = 2048;
+        const char* random_format(char conversion_type);
+
+        gp_test("Random formats with random values");
+        {
+            for (unsigned iteration = 1; iteration <= loop_count; iteration++)
+            {
+                uintmax_t random_bytes; // bit width assumed to be multiple of 32
+                for (uint32_t* i = (uint32_t*)&random_bytes;
+                    (uintmax_t*)i < &random_bytes + 1;
+                    i++) {
+                    *i = pcg32_random();
+                }
+                const char* all_specs = "diouxXeEfFgGaAcsp"; // exept 'n'
+                const char random_specifier =
+                    all_specs[pcg32_boundedrand(strlen(all_specs))];
+                const char* fmt = random_format(random_specifier);
+
+                if (random_specifier != 's')
+                {
+                    pf_sprintf(buf,  fmt, random_bytes);
+                    sprintf(buf_std, fmt, random_bytes);
+                }
+                else // treat random_bytes as string
+                {
+                    pf_sprintf(buf,  fmt, &random_bytes);
+                    sprintf(buf_std, fmt, &random_bytes);
+                }
+                gp_assert(strcmp(buf, buf_std) == 0,
+                    (fmt),
+                    (random_bytes),
+                    (buf),
+                    (buf_std),
+                    (iteration));
+            }
+        }
+    }
 }
+
+bool coin_flip()
+{
+    return pcg32_boundedrand(2);
+}
+
+const char* random_format(char conversion_type)
+{
+    static size_t fmt_capacity = 128;
+    static char* fmt;
+    static bool initialized = false;
+
+    if ( ! initialized)
+    {
+        fmt = malloc(fmt_capacity);
+        initialized = true;
+    }
+    memset(fmt, 0, fmt_capacity);
+    size_t fmt_i = 0;
+
+    #define push_char(c) do \
+    { \
+        fmt[fmt_i] = (c); \
+        fmt_i++; \
+        if (fmt_i >= fmt_capacity - sizeof("x")) \
+        { \
+            char* new_buf = calloc(2, fmt_capacity); \
+            gp_assert(new_buf != NULL); \
+            memcpy(new_buf, fmt, fmt_capacity); \
+            free(fmt); \
+            fmt = new_buf; \
+            fmt_capacity *= 2; \
+        } \
+    } while (0);
+
+    push_char('%');
+
+    char flags[8] = "-"; // dash is common for all
+    switch (conversion_type)
+    {
+        // signed conversions
+        case 'd': case 'i': case 'a': case 'A':
+        case 'e': case 'E': case 'f': case 'F':
+        case 'g': case 'G':
+            strcat(flags, "0 +");
+            if ( ! (conversion_type == 'd' || conversion_type == 'i'))
+                strcat(flags, "#");
+            break;
+
+        // unsinged conversions
+        case 'o': case 'u': case 'x': case 'X':
+            strcat(flags, "#0");
+            break;
+
+        default:
+            strcpy(fmt, "Invalid conversion format character!");
+            return fmt;
+    }
+
+    while (coin_flip()) // add random flags
+    {
+        push_char(flags[pcg32_boundedrand(strlen(flags))]);
+    }
+
+    if (coin_flip()) // add random field width
+    {
+        push_char(pcg32_boundedrand(9) + '1');
+        if (coin_flip())
+            push_char(pcg32_boundedrand(10) + '0');
+            // no need to go past 100
+    }
+
+    if (coin_flip()) // add random precision
+    {
+        push_char('.');
+        push_char(pcg32_boundedrand(9) + '1');
+        if (coin_flip())
+            push_char(pcg32_boundedrand(10) + '0');
+    }
+
+    return fmt;
+}
+
+#include "pcg_basic.c"
