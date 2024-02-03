@@ -132,7 +132,8 @@ parse_format_string(
     }
 
     fmt.conversion_format = *c;
-    fmt.string_length = (c + 1/*get to end of string*/) - fmt.string;
+    c++; // get to the end of string
+    fmt.string_length = c - fmt.string;
 
     return fmt;
 }

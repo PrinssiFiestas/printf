@@ -214,28 +214,71 @@ static unsigned write_f(
 
     if (fmt.flag.hash)
     {
-        bool no_point = ! memchr(out_buf - written, '.', written);
-        unsigned digits_written = 0;
-        for (size_t i = 0; i < written; i++)
-            digits_written += !!strchr("0123456789", (out_buf - written)[i]);
-        const unsigned precision = fmt.precision.option == PF_SOME ?
-            fmt.precision.width :
-            6/*default precision according to C89 standard*/;
+        // bool no_point = ! memchr(out_buf - written, '.', written);
+        // unsigned digits_written = 0;
+        // for (size_t i = 0; i < written; i++)
+        //     digits_written += !!strchr("0123456789", (out_buf - written)[i]);
+        // const unsigned precision = fmt.precision.option == PF_SOME ?
+        //     fmt.precision.width :
+        //     6/*default precision according to C89 standard*/;
 
-        if (no_point) // write point
+        // if (no_point) // write point
+        // {
+        //     out_buf[0] = '.';
+        //     progress(&out_buf, &written, strlen("."));
+        // }
+        // if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
+        //     precision > digits_written) // write trailing zeroes
+        // {
+        //     const unsigned diff = precision - digits_written;
+        //     for (size_t i = 0; i < diff; i++)
+        //     {
+        //         out_buf[i] = '0';
+        //     }
+        //     progress(&out_buf, &written, diff);
+        // }
+        char* decimal_point = memchr(out_buf - written, '.', written);
+        char* exponent = memchr(out_buf - written, 'e', written);
+        if ( ! exponent) // try again
+            exponent = memchr(out_buf - written, 'E', written);
+
+        if ( ! decimal_point) // write point
         {
-            out_buf[0] = '.';
+            if (exponent)
+            {
+                memmove(exponent + strlen("."), exponent, out_buf - exponent);
+                (decimal_point = exponent)[0] = '.';
+                exponent += strlen(".");
+            }
+            else
+            {
+                (decimal_point = out_buf)[0] = '.';
+            }
             progress(&out_buf, &written, strlen("."));
         }
-        if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
-            precision > digits_written) // write trailing zeroes
+
+        if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
-            const unsigned diff = precision - digits_written;
-            for (size_t i = 0; i < diff; i++)
+            unsigned digits_written = 0;
+            size_t limit = exponent ? (size_t)(exponent - (out_buf - written)) : written;
+            for (size_t i = 0; i < limit; i++)
+                digits_written += !!strchr("0123456789", (out_buf - written)[i]);
+
+            const unsigned precision = fmt.precision.option == PF_SOME ?
+                fmt.precision.width :
+                6/*default %g precision*/;
+
+            if (precision > digits_written) // write trailing zeroes
             {
-                out_buf[i] = '0';
+                const unsigned diff = precision - digits_written;
+                if (exponent) // make room for zeroes
+                    memmove(exponent + diff, exponent, out_buf - exponent);
+
+                for (size_t i = 0; i < diff; i++)
+                    decimal_point[strlen(".") + i] = '0';
+
+                progress(&out_buf, &written, diff);
             }
-            progress(&out_buf, &written, diff);
         }
     }
     return written;
