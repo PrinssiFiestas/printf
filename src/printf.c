@@ -214,6 +214,7 @@ static unsigned write_f(
     if (fmt.flag.hash)
     {
         char* decimal_point = memchr(start, '.', written);
+        const bool is_whole_num = ! decimal_point;
         char* exponent = memchr(start, 'e', written);
         if ( ! exponent) // try again
             exponent = memchr(start, 'E', written);
@@ -229,25 +230,42 @@ static unsigned write_f(
             else
             {
                 (decimal_point = out_buf)[0] = '.';
-                out_buf[1] = '\0'; // for strspn()
             }
             progress(&out_buf, &written, strlen("."));
+            out_buf[0] = '\0'; // for strspn()
         }
 
         if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
-            unsigned digits_written = 0;
-            size_t limit = exponent ? (size_t)(exponent - start) : written;
-            for (size_t i = 0; i < limit; i++)
-                digits_written += !!strchr("0123456789", start[i]);
+            unsigned significant_digits_written = 0;
+            bool has_sign = strchr("+ -", start[0]) != NULL;
+            if (is_whole_num)
+            {
+                significant_digits_written =
+                    strspn(start + has_sign, "0123456789");
+            }
+            else if (start[0 + has_sign] == '0' && start[1 + has_sign] == '.')
+            { // number is less than 0 and leading zeroes should be ignored
+                const char* significant_digits_start = decimal_point + strlen(".");
+                while (significant_digits_start[0] == '0')
+                    significant_digits_start++;
+
+                significant_digits_written =
+                    strspn(significant_digits_start, "0123456789");
+            }
+            else // non-whole number with absolute value larger than 0
+            {
+                significant_digits_written =
+                    strspn(start + has_sign, ".0123456789") - strlen(".");
+            }
 
             const unsigned precision = fmt.precision.option == PF_SOME ?
                 fmt.precision.width :
                 6/*default %g precision*/;
 
-            if (precision > digits_written) // write trailing zeroes
+            if (precision > significant_digits_written) // write trailing zeroes
             {
-                const unsigned diff = precision - digits_written;
+                const unsigned diff = precision - significant_digits_written;
                 if (exponent) // make room for zeroes
                     memmove(exponent + diff, exponent, out_buf - exponent);
 

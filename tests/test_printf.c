@@ -248,7 +248,7 @@ int main(void)
             gp_assert(gmt != NULL);
             pcg32_srandom(gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year);
         }
-        const unsigned loop_count = 2048 * 8;
+        const unsigned loop_count = 32768;
         const char* random_format(char conversion_type);
 
         gp_test("Random formats with random values");
