@@ -6,8 +6,8 @@
 
 int main(void)
 {
-    char buf[256] = "";
-    char buf_std[256] = "";
+    char buf[512] = "";
+    char buf_std[512] = "";
 
     gp_suite("Basic type conversions");
     {
@@ -266,6 +266,7 @@ int main(void)
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
 
+                fputs(fmt, stderr);
                 if (random_specifier != 's')
                 {
                     pf_sprintf(buf,  fmt, random_bytes);
@@ -273,6 +274,7 @@ int main(void)
                 }
                 else // treat random_bytes as string
                 {
+                    ((char*)&random_bytes)[sizeof(uintmax_t) - 1] = '\0';
                     pf_sprintf(buf,  fmt, &random_bytes);
                     sprintf(buf_std, fmt, &random_bytes);
                 }
@@ -340,6 +342,9 @@ const char* random_format(char conversion_type)
             strcat(flags, "#0");
             break;
 
+        case 'c': case 's': case 'p':
+            break;
+
         default:
             strcpy(fmt, "Invalid conversion format character!");
             return fmt;
@@ -358,7 +363,7 @@ const char* random_format(char conversion_type)
             // no need to go past 100
     }
 
-    if (coin_flip()) // add random precision
+    if (coin_flip() && conversion_type != 'c') // add random precision
     {
         push_char('.');
         push_char(pcg32_boundedrand(9) + '1');
@@ -366,6 +371,7 @@ const char* random_format(char conversion_type)
             push_char(pcg32_boundedrand(10) + '0');
     }
 
+    fmt[fmt_i] = conversion_type;
     return fmt;
 }
 
