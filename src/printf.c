@@ -229,6 +229,7 @@ static unsigned write_f(
             else
             {
                 (decimal_point = out_buf)[0] = '.';
+                out_buf[1] = '\0'; // for strspn()
             }
             progress(&out_buf, &written, strlen("."));
         }
