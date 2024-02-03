@@ -403,8 +403,10 @@ int pf_vsprintf(
                     (out_buf - written)[0] == '-' ||
                     (out_buf - written)[0] == '+' ||
                     (out_buf - written)[0] == ' '; // space flag: ' ' <=> '+'
-                const bool has_0x   = (out_buf - written)[1] == 'x';
-                const unsigned offset = has_sign ? 1 : has_0x ? 2 : 0;
+                const bool has_0x =
+                    (out_buf - written)[1 + has_sign] == 'x' ||
+                    (out_buf - written)[1 + has_sign] == 'X';
+                const unsigned offset = has_sign + 2 * has_0x;
 
                 // Make foom for zeroes
                 memmove(
