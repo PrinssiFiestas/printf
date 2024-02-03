@@ -112,7 +112,7 @@ static unsigned write_o(
     if (fmt.flag.hash && u > 0)
     {
         memmove(out_buf + strlen("0"), out_buf, written);
-        memcpy(out_buf, "0", strlen("0"));
+        out_buf[0] = '0';
 
         return strlen("0") + pad_zeroes(
             out_buf + strlen("0"), fmt, written);
@@ -251,8 +251,10 @@ static unsigned write_f(
                 if (exponent) // make room for zeroes
                     memmove(exponent + diff, exponent, out_buf - exponent);
 
+                char* end_of_digits = decimal_point + strlen(".");
+                end_of_digits += strspn(end_of_digits, "0123456789");
                 for (size_t i = 0; i < diff; i++)
-                    decimal_point[strlen(".") + i] = '0';
+                    end_of_digits[i] = '0';
 
                 progress(&out_buf, &written, diff);
             }
