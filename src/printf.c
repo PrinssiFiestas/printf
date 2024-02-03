@@ -114,8 +114,7 @@ static unsigned write_o(
         memmove(out_buf + strlen("0"), out_buf, written);
         out_buf[0] = '0';
 
-        return strlen("0") + pad_zeroes(
-            out_buf + strlen("0"), fmt, written);
+        return pad_zeroes(out_buf, fmt, written + strlen("."));
     }
     else
         return pad_zeroes(out_buf, fmt, written);
