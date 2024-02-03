@@ -366,14 +366,17 @@ int pf_vsprintf(
         if (written < fmt.field.width) // add padding
         {
             const unsigned diff = fmt.field.width - written;
+            const bool ignore_zero =
+                strchr("diouxX", fmt.conversion_format) != NULL &&
+                fmt.precision.option != PF_NONE;
 
             if (fmt.flag.dash) // left justified, append padding
             {
                 for (size_t i = 0; i < diff; i++)
                     out_buf[i] = ' ';
             }
-            else if (fmt.flag.zero) // 0-padding minding "0x" or "-" prefix
-            {
+            else if (fmt.flag.zero && ! ignore_zero)
+            { // 0-padding minding "0x" or sign prefix
                 const bool has_sign =
                     (out_buf - written)[0] == '-' ||
                     (out_buf - written)[0] == '+' ||
