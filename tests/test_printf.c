@@ -277,10 +277,12 @@ int main(void)
                     pf_sprintf(buf,  fmt, &random_bytes);
                     sprintf(buf_std, fmt, &random_bytes);
                 }
+                // Rename buf for aligned gp_assert() message
+                const char* _my_buf = buf;
                 gp_assert(strcmp(buf, buf_std) == 0,
                     (fmt),
-                    (random_bytes),
-                    (buf),
+                    ("%#jx", random_bytes),
+                    (_my_buf),
                     (buf_std),
                     (iteration));
             }
