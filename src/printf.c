@@ -183,6 +183,7 @@ static unsigned write_f(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
+    char* const start = out_buf;
     unsigned written = 0;
 
     // strfromd() doesn't take flags or field width so fmt.string needs to be
@@ -204,43 +205,19 @@ static unsigned write_f(
             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
             va_arg(*args, double)));
 
-    if ((fmt.flag.plus || fmt.flag.space)
-        && (out_buf - written)[0] != '-') // write plus or space if positive
-    {
-        memmove(out_buf - written + strlen("+"), out_buf - written, written);
-        (out_buf - written)[0] = fmt.flag.plus ? '+' : ' ';
+    if ((fmt.flag.plus || fmt.flag.space) && start[0] != '-')
+    { // write plus or space if positive
+        memmove(start + strlen("+"), start, written);
+        start[0] = fmt.flag.plus ? '+' : ' ';
         progress(&out_buf, &written, strlen("+"));
     }
 
     if (fmt.flag.hash)
     {
-        // bool no_point = ! memchr(out_buf - written, '.', written);
-        // unsigned digits_written = 0;
-        // for (size_t i = 0; i < written; i++)
-        //     digits_written += !!strchr("0123456789", (out_buf - written)[i]);
-        // const unsigned precision = fmt.precision.option == PF_SOME ?
-        //     fmt.precision.width :
-        //     6/*default precision according to C89 standard*/;
-
-        // if (no_point) // write point
-        // {
-        //     out_buf[0] = '.';
-        //     progress(&out_buf, &written, strlen("."));
-        // }
-        // if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G') &&
-        //     precision > digits_written) // write trailing zeroes
-        // {
-        //     const unsigned diff = precision - digits_written;
-        //     for (size_t i = 0; i < diff; i++)
-        //     {
-        //         out_buf[i] = '0';
-        //     }
-        //     progress(&out_buf, &written, diff);
-        // }
-        char* decimal_point = memchr(out_buf - written, '.', written);
-        char* exponent = memchr(out_buf - written, 'e', written);
+        char* decimal_point = memchr(start, '.', written);
+        char* exponent = memchr(start, 'e', written);
         if ( ! exponent) // try again
-            exponent = memchr(out_buf - written, 'E', written);
+            exponent = memchr(start, 'E', written);
 
         if ( ! decimal_point) // write point
         {
@@ -260,9 +237,9 @@ static unsigned write_f(
         if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
             unsigned digits_written = 0;
-            size_t limit = exponent ? (size_t)(exponent - (out_buf - written)) : written;
+            size_t limit = exponent ? (size_t)(exponent - start) : written;
             for (size_t i = 0; i < limit; i++)
-                digits_written += !!strchr("0123456789", (out_buf - written)[i]);
+                digits_written += !!strchr("0123456789", start[i]);
 
             const unsigned precision = fmt.precision.option == PF_SOME ?
                 fmt.precision.width :
