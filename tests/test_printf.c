@@ -6,8 +6,8 @@
 
 int main(void)
 {
-    char buf[512] = "";
-    char buf_std[512] = "";
+    char buf[1024] = "";
+    char buf_std[1024] = "";
 
     gp_suite("Basic type conversions");
     {
@@ -248,7 +248,7 @@ int main(void)
             gp_assert(gmt != NULL);
             pcg32_srandom(gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year);
         }
-        const unsigned loop_count = 32768;
+        const unsigned loop_count = 32768 * 16;
         const char* random_format(char conversion_type);
 
         gp_test("Random formats with random values");

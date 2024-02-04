@@ -239,7 +239,8 @@ static unsigned write_f(
         }
         out_buf[0] = '\0'; // for strspn()
 
-        if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
+        if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
+            && ! is_nan_or_inf)
         {
             unsigned significant_digits_written = 0;
             if (is_whole_num)
@@ -408,23 +409,29 @@ int pf_vsprintf(
 
         if (written < fmt.field.width) // add padding
         {
-            const unsigned diff = fmt.field.width - written;
-            const bool ignore_zero =
-                strchr("diouxX", fmt.conversion_format) != NULL &&
-                fmt.precision.option != PF_NONE;
             char* const start = out_buf - written;
+            const unsigned diff = fmt.field.width - written;
+            const bool has_sign =
+                start[0] == '-' ||
+                start[0] == '+' ||
+                start[0] == ' '; // space flag: ' ' <=> '+'
+
+            const bool ignore_zero =
+            (
+                strchr("diouxX", fmt.conversion_format) != NULL &&
+                fmt.precision.option != PF_NONE
+            ) || (
+                start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
+                start[has_sign] == 'i' || start[has_sign] == 'I'    // "inf"
+            );
 
             if (fmt.flag.dash) // left justified, append padding
             {
                 for (size_t i = 0; i < diff; i++)
                     out_buf[i] = ' ';
             }
-            else if (fmt.flag.zero && ! ignore_zero)
+            else if (fmt.flag.zero && ! ignore_zero) // fill in zeroes
             { // 0-padding minding "0x" or sign prefix
-                const bool has_sign =
-                    start[0] == '-' ||
-                    start[0] == '+' ||
-                    start[0] == ' '; // space flag: ' ' <=> '+'
                 const bool has_0x =
                     start[1 + has_sign] == 'x' ||
                     start[1 + has_sign] == 'X';
@@ -443,13 +450,13 @@ int pf_vsprintf(
                     start + offset,
                     written - offset);
 
-                for (size_t i = 0; i < diff; i++) // fill in zeroes
+                for (size_t i = 0; i < diff; i++)
                     (start + offset)[i] = '0';
             }
-            else
+            else // fill in spaces
             {
                 memmove(start + diff, start, written);
-                for (size_t i = 0; i < diff; i++) // fill in spaces
+                for (size_t i = 0; i < diff; i++)
                     start[i] = ' ';
             }
 
