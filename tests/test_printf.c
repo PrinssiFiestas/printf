@@ -273,6 +273,8 @@ int main(void)
                 int _my_buf_return_value = 0;
                 int buf_std_return_value = 0;
 
+                // The important part is to pass a right sized argument, the
+                // actual type isn't important.
                 if (random_specifier == 's') // treat random_bytes as string
                 {
                     ((char*)&random_bytes)[sizeof(uintmax_t) - 1] = '\0';
@@ -281,12 +283,86 @@ int main(void)
                     buf_std_return_value = snprintf(
                         buf_std, size, fmt, &random_bytes);
                 }
-                else
+                else if (random_specifier == 'c')
                 {
                     _my_buf_return_value = pf_snprintf(
-                        buf, size, fmt, (unsigned char)random_bytes);
+                        buf, size, fmt, (char)random_bytes);
                     buf_std_return_value = snprintf(
-                        buf_std, size, fmt, (unsigned char)random_bytes);
+                        buf_std, size, fmt, (char)random_bytes);
+                }
+                else if (random_specifier == 'p') // pointer
+                {
+                    _my_buf_return_value = pf_snprintf(
+                        buf, size, fmt, (intptr_t)random_bytes);
+                    buf_std_return_value = snprintf(
+                        buf_std, size, fmt, (intptr_t)random_bytes);
+                }
+                else if (strchr("eEfFgGaA", random_specifier) != NULL) // float
+                {
+                    _my_buf_return_value = pf_snprintf(
+                        buf, size, fmt, *(double*)&random_bytes);
+                    buf_std_return_value = snprintf(
+                        buf_std, size, fmt, *(double*)&random_bytes);
+                }
+                else // integer
+                {
+                    size_t len = strlen(fmt);
+                    if (fmt[len - 3] == 'h')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (char)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (char)random_bytes);
+                    }
+                    else if (fmt[len - 2] == 'h')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (short)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (short)random_bytes);
+                    }
+                    else if (fmt[len - 3] == 'l')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (long long)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (long long)random_bytes);
+                    }
+                    else if (fmt[len - 2] == 'l')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (long)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (long)random_bytes);
+                    }
+                    else if (fmt[len - 2] == 'j')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (uintmax_t)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (uintmax_t)random_bytes);
+                    }
+                    else if (fmt[len - 2] == 'z')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (size_t)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (size_t)random_bytes);
+                    }
+                    else if (fmt[len - 2] == 't')
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (ptrdiff_t)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (ptrdiff_t)random_bytes);
+                    }
+                    else // no modifier
+                    {
+                        _my_buf_return_value = pf_snprintf(
+                            buf, size, fmt, (int)random_bytes);
+                        buf_std_return_value = snprintf(
+                            buf_std, size, fmt, (int)random_bytes);
+                    }
                 }
 
                 // Rename buf for aligned gp_assert() message
@@ -386,6 +462,35 @@ const char* random_format(char conversion_type)
         push_char(pcg32_boundedrand(9) + '1');
         if (coin_flip())
             push_char(pcg32_boundedrand(10) + '0');
+    }
+
+    // Add random length modifier but only for integers. This is because most of
+    // the other ones are undefined or not well supported.
+    if (coin_flip() && strchr("diouxX", conversion_type) != NULL)
+    {
+        // The capital ones are for convinience and will be turned into "hh"
+        // and "ll" respectively. 'z' will be turned into 't' if signed.
+        const char modifiers[] = "hHlLhtz";
+        const char modifier = modifiers[pcg32_boundedrand(strlen(modifiers))];
+        if (modifier == 'H')
+        {
+            push_char('h');
+            push_char('h');
+        }
+        else if (modifier == 'L')
+        {
+            push_char('l');
+            push_char('l');
+        }
+        else if (modifier == 'z' &&
+            (conversion_type == 'd' || conversion_type == 'i'))
+        {
+            push_char('t');
+        }
+        else
+        {
+            push_char(modifier);
+        }
     }
 
     fmt[fmt_i] = conversion_type;

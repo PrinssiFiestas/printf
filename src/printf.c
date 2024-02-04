@@ -6,19 +6,25 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
     switch (fmt.length_modifier)
     {
-        case 'l':
-            return va_arg(*args, unsigned long);
-
-        case 2 * 'l':
-            return va_arg(*args, unsigned long long);
-
-        case 'z':
-            return va_arg(*args, size_t);
-
         case 'j':
             return va_arg(*args, uintmax_t);
 
-        default: // rely on integer promotion
+        case 'l' * 2:
+            return va_arg(*args, unsigned long long);
+
+        case 'l':
+            return va_arg(*args, unsigned long);
+
+        case 'h':
+            return (unsigned short)va_arg(*args, unsigned);
+
+        case 'h' * 2:
+            return (unsigned char)va_arg(*args, unsigned);
+
+        case 'z': // Cast in case of sizeof(size_t) < sizeof(unsigned)
+            return (size_t)va_arg(*args, size_t);
+
+        default:
             return va_arg(*args, unsigned);
     }
 }
@@ -112,23 +118,31 @@ static unsigned write_i(
     intmax_t i;
     switch (fmt.length_modifier)
     {
-        case 'l':
-            i = va_arg(*args, long);
-            break;
-
-        case 2 * 'l':
-            i = va_arg(*args, long long);
-            break;
-
-        case 't':
-            i = va_arg(*args, ptrdiff_t);
-            break;
-
         case 'j':
             i = va_arg(*args, intmax_t);
             break;
 
-        default: // rely on integer promotion
+        case 'l' * 2:
+            i = va_arg(*args, long long);
+            break;
+
+        case 'l':
+            i = va_arg(*args, long);
+            break;
+
+        case 'h':
+            i = (short)va_arg(*args, int);
+            break;
+
+        case 'h' * 2: // Remember: signed char is NOT char!
+            i = (signed char)va_arg(*args, int);
+            break;
+
+        case 't': // Cast in case of sizeof(ptrdiff_t) < sizeof(int)
+            i = (ptrdiff_t)va_arg(*args, ptrdiff_t);
+            break;
+
+        default:
             i = va_arg(*args, int);
     }
 
