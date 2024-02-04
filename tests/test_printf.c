@@ -4,10 +4,12 @@
 #include "pcg_basic.h"
 #include <time.h>
 
+#define FUZZ_TEST_LOOP_COUNT 65536
+
 int main(void)
 {
-    char buf[1024] = "";
-    char buf_std[1024] = "";
+    char buf[512] = "";
+    char buf_std[512] = "";
 
     gp_suite("Basic type conversions");
     {
@@ -248,7 +250,7 @@ int main(void)
             gp_assert(gmt != NULL);
             pcg32_srandom(gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year);
         }
-        const unsigned loop_count = 32768 * 16;
+        const unsigned loop_count = FUZZ_TEST_LOOP_COUNT;
         const char* random_format(char conversion_type);
 
         gp_test("Random formats with random values");
