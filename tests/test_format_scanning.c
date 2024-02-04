@@ -1,4 +1,4 @@
-#include "../src/format_parsing.c"
+#include "../src/format_scanning.c"
 #include <gpc/assert.h>
 
 int main(void)
@@ -6,7 +6,7 @@ int main(void)
     gp_suite("Format parsing");
     {
         PFFormatSpecifier fmt =
-            parse_format_string("blah blah %#035.721hhg blah", NULL);
+            scan_format_string("blah blah %#035.721hhg blah", NULL);
 
         gp_test("Format string");
         {
@@ -40,7 +40,5 @@ int main(void)
             gp_expect(fmt.length_modifier == 2 * 'h', (fmt.length_modifier));
             gp_expect(fmt.conversion_format == 'g');
         }
-
-        // TODO random format tests
     }
 }

@@ -1,5 +1,5 @@
 #include <printf/printf.h>
-#include "format_parsing.h"
+#include "format_scanning.h"
 #include "conversions.h"
 
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
@@ -21,7 +21,7 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
         case 'h' * 2:
             return (unsigned char)va_arg(*args, unsigned);
 
-        case 'z': // Cast in case of sizeof(size_t) < sizeof(unsigned)
+        case 'z':
             return (size_t)va_arg(*args, size_t);
 
         default:
@@ -138,7 +138,7 @@ static unsigned write_i(
             i = (signed char)va_arg(*args, int);
             break;
 
-        case 't': // Cast in case of sizeof(ptrdiff_t) < sizeof(int)
+        case 't':
             i = (ptrdiff_t)va_arg(*args, ptrdiff_t);
             break;
 
@@ -377,7 +377,7 @@ int pf_vsnprintf(
 
     while (1)
     {
-        const PFFormatSpecifier fmt = parse_format_string(format, &args);
+        const PFFormatSpecifier fmt = scan_format_string(format, &args);
         if (fmt.string == NULL)
             break;
 

@@ -1,5 +1,5 @@
-#ifndef FORMAT_PARSING_H_INCLUDED
-#define FORMAT_PARSING_H_INCLUDED 1
+#ifndef FORMAT_SCANNING_H_INCLUDED
+#define FORMAT_SCANNING_H_INCLUDED 1
 
 #include <printf/printf.h>
 
@@ -8,17 +8,13 @@ typedef struct PFFormatSpecifier
     const char* string;     // Pointer to '%', NULL if no format specifier.
     unsigned string_length; // e.g. 4 for "%.3f"
 
-    union // flag
+    struct // flag
     {
-        unsigned any;
-        struct
-        {
-            bool dash;
-            bool plus;
-            bool space;
-            bool hash;
-            bool zero;
-        };
+        bool dash;
+        bool plus;
+        bool space;
+        bool hash;
+        bool zero;
     } flag;
 
     struct // field
@@ -43,8 +39,8 @@ typedef struct PFFormatSpecifier
 } PFFormatSpecifier;
 
 PFFormatSpecifier
-parse_format_string(
+scan_format_string(
     const char fmt_string[GP_STATIC sizeof("%i")],
     va_list* asterisks); // optional
 
-#endif // FORMAT_PARSING_H_INCLUDED
+#endif // FORMAT_SCANNING_H_INCLUDED
