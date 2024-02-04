@@ -215,11 +215,15 @@ static unsigned write_f(
     {
         char* decimal_point = memchr(start, '.', written);
         const bool is_whole_num = ! decimal_point;
+        const bool has_sign = strchr("+ -", start[0]) != NULL;
         char* exponent = memchr(start, 'e', written);
         if ( ! exponent) // try again
             exponent = memchr(start, 'E', written);
+        const bool is_nan_or_inf =
+            start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
+            start[has_sign] == 'i' || start[has_sign] == 'I';   // "inf"
 
-        if ( ! decimal_point) // write point
+        if ( ! decimal_point && ! is_nan_or_inf) // write point
         {
             if (exponent)
             {
@@ -238,7 +242,6 @@ static unsigned write_f(
         if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
             unsigned significant_digits_written = 0;
-            bool has_sign = strchr("+ -", start[0]) != NULL;
             if (is_whole_num)
             {
                 significant_digits_written =
