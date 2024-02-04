@@ -4,9 +4,32 @@
 
 struct PFString
 {
+    // length is used to store the return value of printf() so it may exceed
+    // capacity.
+
     char* data;
     size_t length;
+    size_t capacity;
 };
+
+static size_t
+limit(const struct PFString me, const size_t x)
+{
+    const size_t cap_left = me.length >= me.capacity ? 0 : me.capacity - me.length;
+    return cap_left < x ? cap_left : x;
+}
+
+static void concat(struct PFString* me, const char* src, const size_t length)
+{
+    memcpy(me->data + me->length, src, limit(*me, length));
+    me->length += length;
+}
+
+static void pad(struct PFString* me, const char c, const size_t length)
+{
+    memset(me->data + me->length, c, limit(*me, length));
+    me->length += length;
+}
 
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
@@ -72,11 +95,11 @@ progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
 };
 
 static unsigned write_s(
-    char out_buf[static 1],
+    struct PFString* out,
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    unsigned written = 0;
+    const size_t original_length = out->length;
     const char* cstr = va_arg(*args, const char*);
     if (cstr == NULL)
     {
@@ -99,23 +122,19 @@ static unsigned write_s(
     const unsigned diff = field_width - cstr_len;
     if (fmt.flag.dash) // left justified
     { // first string, then pad
-        memcpy(out_buf, cstr, cstr_len);
-        progress(&out_buf, &written, cstr_len);
-        for (unsigned i = 0; i < diff; i++)
-            out_buf[i] = ' ';
-        progress(&out_buf, &written, diff);
+        concat(out, cstr, cstr_len);
+        pad(out, ' ', diff);
     }
     else // first pad, then string
     {
-        for (unsigned i = 0; i < diff; i++)
-            out_buf[i] = ' ';
-        progress(&out_buf, &written, diff);
-        memcpy(out_buf, cstr, cstr_len);
-        progress(&out_buf, &written, cstr_len);
+        pad(out, ' ', diff);
+        concat(out, cstr, cstr_len);
     }
 
-    return written;
+    //return written;
+    return out->length - original_length;
 }
+
 static unsigned write_i(
     char out_buf[static 1],
     va_list args[static 1],
@@ -445,12 +464,11 @@ static unsigned add_padding(
 
 int pf_vsnprintf(
     char out_buf[static 1],
-    size_t max_size,
+    const size_t max_size,
     const char format[static 1],
     va_list args)
 {
-    (void)max_size;
-    struct PFString out = { out_buf };
+    struct PFString out = { out_buf, .capacity = max_size };
 
     while (1)
     {
@@ -458,7 +476,7 @@ int pf_vsnprintf(
         if (fmt.string == NULL)
             break;
 
-        memcpy(out.data + out.length, format, fmt.string - format);
+        memcpy(out.data + out.length, format, limit(out, fmt.string - format));
         out.length += fmt.string - format;
 
         format = fmt.string + fmt.string_length;
@@ -468,13 +486,15 @@ int pf_vsnprintf(
         switch (fmt.conversion_format)
         {
             case 'c':
-                out.data[out.length] = (char)va_arg(args, int);
+                if (limit(out, -1) != 0)
+                    out.data[out.length] = (char)va_arg(args, int);
                 written_by_conversion++;
                 break;
 
             case 's':
                 written_by_conversion += write_s(
-                    out.data + out.length, &args, fmt);
+                    &out, &args, fmt);
+                    //out.data + out.length, &args, fmt);
                 break;
 
             case 'd':
@@ -522,9 +542,15 @@ int pf_vsnprintf(
                 break;
         }
 
-        out.length += written_by_conversion;
+         // TEMP ignore already added length. When write_*() functions are
+         // refactored to handle length, everyting is ignored which obviously is
+         // the time to remove these 2 lines.
+        if (!strchr("s", fmt.conversion_format))
+            out.length += written_by_conversion;
+
         if (written_by_conversion < fmt.field.width)
-            out.length += add_padding(out.data + out.length, written_by_conversion, fmt);
+            out.length += add_padding(
+                out.data + out.length, written_by_conversion, fmt);
     }
 
     // Write what's left in format string
