@@ -11,22 +11,22 @@ int main(void)
 
         gp_test("utoa");
         {
-            len = pf_utoa(buf, 1);
+            len = pf_utoa(-1, buf, 1);
             expect_str(buf, "1");
             gp_expect(len == 1, (len));
 
-            len = pf_utoa(buf, 12345);
+            len = pf_utoa(-1, buf, 12345);
             expect_str(buf, "12345");
             gp_expect(len == 5, (len));
         }
 
         gp_test("itoa");
         {
-            len = pf_itoa(buf, 123456);
+            len = pf_itoa(-1, buf, 123456);
             expect_str(buf, "123456");
             gp_expect(len == 6, (len));
 
-            len = pf_itoa(buf, -123456);
+            len = pf_itoa(-1, buf, -123456);
             expect_str(buf, "-123456");
             gp_expect(len == 7, (len));
         }
@@ -35,7 +35,7 @@ int main(void)
         gp_test("otoa");
         {
             sprintf(buf2, "%o", 745);
-            len = pf_otoa(buf, 745);
+            len = pf_otoa(-1, buf, 745);
             expect_str(buf, buf2);
             gp_expect(len == strlen(buf2));
         }
@@ -43,7 +43,7 @@ int main(void)
         gp_test("xtoa");
         {
             sprintf(buf2, "%x", 745);
-            len = pf_xtoa(buf, 745);
+            len = pf_xtoa(-1, buf, 745);
             expect_str(buf, buf2);
             gp_expect(len == strlen(buf2));
         }

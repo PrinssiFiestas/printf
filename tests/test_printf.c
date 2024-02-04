@@ -376,7 +376,11 @@ int main(void)
                     (iteration));
 
                 gp_assert(_my_buf_return_value == buf_std_return_value,
-                    (_my_buf_return_value), (buf_std_return_value));
+                    (fmt),
+                    (size),
+                    (_my_buf_return_value),
+                    (buf_std_return_value),
+                    (iteration));
             }
         }
     }

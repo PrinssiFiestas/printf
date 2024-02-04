@@ -11,71 +11,84 @@ static char* str_reverse(size_t len, char buf[GP_STATIC len])
     return buf;
 }
 
-unsigned pf_utoa(char* buf, uintmax_t x)
+unsigned pf_utoa(const size_t n, char* buf, uintmax_t x)
 {
     size_t i = 0;
     do // write all digits from low to high
     {
-        buf[i++] = x % 10 + '0';
+        if (i < n)
+            buf[i++] = x % 10 + '0';
         x /= 10;
     } while(x);
 
-    buf[i] = '\0';
-    str_reverse(i, buf);
+    if (i < n)
+        buf[i] = '\0';
+    str_reverse(i < n ? i : n, buf);
     return i;
 }
 
-unsigned pf_itoa(char buf[GP_STATIC MAX_DIGITS], intmax_t x)
+unsigned pf_itoa(const size_t n, char* buf, intmax_t x)
 {
     if (x < 0)
     {
-        buf[0] = '-';
-        return pf_utoa(buf + 1, -x) + 1;
+        if (n != 0)
+            buf[0] = '-';
+        return pf_utoa(n - 1, buf + 1, -x) + 1;
     }
-    else return pf_utoa(buf, x);
+    else return pf_utoa(n, buf, x);
 }
 
-unsigned pf_otoa(char* buf, uintmax_t x)
+unsigned pf_otoa(const size_t n, char* buf, uintmax_t x)
 {
     size_t i = 0;
     do // write all digits from low to high
     {
-        buf[i++] = x % 8 + '0';
+        if (i < n)
+            buf[i++] = x % 8 + '0';
         x /= 8;
     } while(x);
 
-    buf[i] = '\0';
-    str_reverse(i, buf);
+    if (i < n)
+        buf[i] = '\0';
+    str_reverse(i < n ? i : n, buf);
     return i;
 }
 
-unsigned pf_xtoa(char* buf, uintmax_t x)
+unsigned pf_xtoa(const size_t n, char* buf, uintmax_t x)
 {
     size_t i = 0;
     do // write all digits from low to high
     {
-        char digit = x % 16;
-        buf[i++] = digit <= 9 ? digit + '0' : digit - 10 + 'a';
+        if (i < n)
+        {
+            unsigned _x = x % 16;
+            buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'a';
+        }
         x /= 16;
-    } while (x);
+    } while(x);
 
-    buf[i] = '\0';
-    str_reverse(i, buf);
+    if (i < n)
+        buf[i] = '\0';
+    str_reverse(i < n ? i : n, buf);
     return i;
 }
 
-unsigned pf_Xtoa(char* buf, uintmax_t x)
+unsigned pf_Xtoa(const size_t n, char* buf, uintmax_t x)
 {
     size_t i = 0;
     do // write all digits from low to high
     {
-        char digit = x % 16;
-        buf[i++] = digit <= 9 ? digit + '0' : digit - 10 + 'A';
+        if (i < n)
+        {
+            unsigned _x = x % 16;
+            buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'A';
+        }
         x /= 16;
-    } while (x);
+    } while(x);
 
-    buf[i] = '\0';
-    str_reverse(i, buf);
+    if (i < n)
+        buf[i] = '\0';
+    str_reverse(i < n ? i : n, buf);
     return i;
 }
 
