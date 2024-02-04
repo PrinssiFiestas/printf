@@ -52,6 +52,58 @@ static unsigned pad_zeroes(
     return written;
 }
 
+static inline void
+progress(char* out_buf[static 1], unsigned written[static 1],unsigned u)
+{
+    *written += u;
+    *out_buf += u;
+};
+
+static unsigned write_s(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
+    unsigned written = 0;
+    const char* cstr = va_arg(*args, const char*);
+    if (cstr == NULL)
+    {
+        if (fmt.precision.option == PF_SOME &&
+            fmt.precision.width < strlen("(null)"))
+            cstr = "";
+        else
+            cstr = "(null)";
+    }
+
+    size_t cstr_len = 0;
+    if (fmt.precision.option == PF_NONE) // should be null-terminated
+        cstr_len = strlen(cstr);
+    else // who knows if null-terminated
+        while (cstr_len < fmt.precision.width && cstr[cstr_len] != '\0')
+            cstr_len++;
+
+    const unsigned field_width = fmt.field.width > cstr_len ?
+        fmt.field.width : cstr_len;
+    const unsigned diff = field_width - cstr_len;
+    if (fmt.flag.dash) // left justified
+    { // first string, then pad
+        memcpy(out_buf, cstr, cstr_len);
+        progress(&out_buf, &written, cstr_len);
+        for (unsigned i = 0; i < diff; i++)
+            out_buf[i] = ' ';
+        progress(&out_buf, &written, diff);
+    }
+    else // first pad, then string
+    {
+        for (unsigned i = 0; i < diff; i++)
+            out_buf[i] = ' ';
+        progress(&out_buf, &written, diff);
+        memcpy(out_buf, cstr, cstr_len);
+        progress(&out_buf, &written, cstr_len);
+    }
+
+    return written;
+}
 static unsigned write_i(
     char out_buf[static 1],
     va_list args[static 1],
@@ -170,12 +222,25 @@ static unsigned write_u(
     return pad_zeroes(out_buf, fmt, written);
 }
 
-static inline void
-progress(char* out_buf[static 1], unsigned written[static 1],unsigned u)
+static unsigned write_p(
+    char out_buf[static 1],
+    va_list args[static 1],
+    const PFFormatSpecifier fmt)
 {
-    *written += u;
-    *out_buf += u;
-};
+    const uintmax_t u = get_uint(args, fmt);
+
+    if (u > 0)
+    {
+        strcpy(out_buf, "0x");
+        return strlen("0x") + pad_zeroes(
+            out_buf + strlen("0x"), fmt, pf_xtoa(out_buf + strlen("0x"), u));
+    }
+    else
+    {
+        strcpy(out_buf, "(nil)");
+        return strlen("(nil)");
+    }
+}
 
 static unsigned write_f(
     char out_buf[static 1],
@@ -287,11 +352,13 @@ static unsigned write_f(
 
 // ---------------------------------------------------------------------------
 
-int pf_vsprintf(
+int pf_vsnprintf(
     char out_buf[static 1],
+    size_t max_size,
     const char format[static 1],
     va_list args)
 {
+    (void)max_size;
     unsigned chars_written = 0;
 
     while (1)
@@ -318,38 +385,8 @@ int pf_vsprintf(
                 break;
 
             case 's':
-            {
-                const char* cstr = va_arg(args, const char*);
-
-                size_t cstr_len = 0;
-                if (fmt.precision.option == PF_NONE) // should be null-terminated
-                    cstr_len = strlen(cstr);
-                else // who knows if null-terminated
-                    while (cstr_len < fmt.precision.width && cstr[cstr_len] != '\0')
-                        cstr_len++;
-
-                const unsigned field_width = fmt.field.width > cstr_len ?
-                    fmt.field.width : cstr_len;
-                const unsigned diff = field_width - cstr_len;
-                if (fmt.flag.dash) // left justified
-                { // first string, then pad
-                    memcpy(out_buf, cstr, cstr_len);
-                    progress(&out_buf, &written, cstr_len);
-                    for (unsigned i = 0; i < diff; i++)
-                        out_buf[i] = ' ';
-                    progress(&out_buf, &written, diff);
-                }
-                else // first pad, then string
-                {
-                    for (unsigned i = 0; i < diff; i++)
-                        out_buf[i] = ' ';
-                    progress(&out_buf, &written, diff);
-                    memcpy(out_buf, cstr, cstr_len);
-                    progress(&out_buf, &written, cstr_len);
-                }
-
+                progress(&out_buf, &written, write_s(out_buf, &args, fmt));
                 break;
-            }
 
             case 'd':
             case 'i':
@@ -373,25 +410,8 @@ int pf_vsprintf(
                 break;
 
             case 'p':
-            {
-                PFFormatSpecifier ptr_fmt = fmt;
-                ptr_fmt.flag.hash = true; // for "0x"
-                switch ((uintmax_t)UINTPTR_MAX)
-                {
-                    case ULLONG_MAX:
-                        ptr_fmt.length_modifier = 2 * 'l';
-                        break;
-
-                    case ULONG_MAX:
-                        ptr_fmt.length_modifier = 'l';
-                        break;
-
-                    default:
-                        ptr_fmt.length_modifier = 0;
-                }
-                progress(&out_buf, &written, write_x(out_buf, &args, ptr_fmt));
+                progress(&out_buf, &written, write_p(out_buf, &args, fmt));
                 break;
-            }
 
             case 'f': case 'F':
             case 'e': case 'E':
@@ -473,13 +493,32 @@ int pf_vsprintf(
     return chars_written;
 }
 
+int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args)
+{
+    // Some implementations of snprintf() and strfromd() don't accept sizes
+    // larger than SIZE_MAX/2. Also the return value which is written
+    // characters is int and INT_MAX < SIZE_MAX in most systems. This means that
+    // correctness was never achievable in the first place so let's just settle
+    // with INT_MAX.
+    return pf_vsnprintf(buf, INT_MAX, fmt, args);
+}
+
 __attribute__ ((format (printf, 2, 3)))
 int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
 {
     va_list args;
     va_start(args, fmt);
-    unsigned written = pf_vsprintf(buf, fmt, args);
+    int written = pf_vsnprintf(buf, INT_MAX, fmt, args);
     va_end(args);
     return written;
 }
 
+__attribute__ ((format (printf, 3, 4)))
+int pf_snprintf(char buf[static 1], size_t n, const char fmt[static 1], ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int written = pf_vsnprintf(buf, n, fmt, args);
+    va_end(args);
+    return written;
+}

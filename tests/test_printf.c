@@ -267,25 +267,33 @@ int main(void)
                 const char random_specifier =
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
+                //uint32_t size = pcg32_boundedrand(sizeof(buf));
+                uint32_t size = INT_MAX;
 
                 int _my_buf_return_value = 0;
                 int buf_std_return_value = 0;
 
-                if (random_specifier != 's')
-                {
-                    _my_buf_return_value = pf_sprintf(buf,  fmt, random_bytes);
-                    buf_std_return_value = sprintf(buf_std, fmt, random_bytes);
-                }
-                else // treat random_bytes as string
+                if (random_specifier == 's') // treat random_bytes as string
                 {
                     ((char*)&random_bytes)[sizeof(uintmax_t) - 1] = '\0';
-                    _my_buf_return_value = pf_sprintf(buf,  fmt, &random_bytes);
-                    buf_std_return_value = sprintf(buf_std, fmt, &random_bytes);
+                    _my_buf_return_value = pf_snprintf(
+                        buf, size, fmt, &random_bytes);
+                    buf_std_return_value = snprintf(
+                        buf_std, size, fmt, &random_bytes);
                 }
+                else
+                {
+                    _my_buf_return_value = pf_snprintf(
+                        buf, size, fmt, (unsigned char)random_bytes);
+                    buf_std_return_value = snprintf(
+                        buf_std, size, fmt, (unsigned char)random_bytes);
+                }
+
                 // Rename buf for aligned gp_assert() message
                 const char* _my_buf = buf;
                 gp_assert(strcmp(buf, buf_std) == 0,
                     (fmt),
+                    (size),
                     ("%#jx", random_bytes),
                     (_my_buf),
                     (buf_std),

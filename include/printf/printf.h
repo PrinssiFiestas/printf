@@ -20,8 +20,12 @@
 #endif//
 
 int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args);
+int pf_vsnprintf(char buf[static 1], size_t, const char fmt[static 1], va_list args);
 
 __attribute__ ((format (printf, 2, 3)))
 int pf_sprintf(char buf[static 1], const char fmt[static 1], ...);
+
+__attribute__ ((format (printf, 3, 4)))
+int pf_snprintf(char buf[static 1], size_t, const char fmt[static 1], ...);
 
 #endif // PRINTF_H_INCLUDED
