@@ -232,8 +232,8 @@ static unsigned write_f(
                 (decimal_point = out_buf)[0] = '.';
             }
             progress(&out_buf, &written, strlen("."));
-            out_buf[0] = '\0'; // for strspn()
         }
+        out_buf[0] = '\0'; // for strspn()
 
         if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
@@ -409,6 +409,7 @@ int pf_vsprintf(
             const bool ignore_zero =
                 strchr("diouxX", fmt.conversion_format) != NULL &&
                 fmt.precision.option != PF_NONE;
+            char* const start = out_buf - written;
 
             if (fmt.flag.dash) // left justified, append padding
             {
@@ -418,12 +419,12 @@ int pf_vsprintf(
             else if (fmt.flag.zero && ! ignore_zero)
             { // 0-padding minding "0x" or sign prefix
                 const bool has_sign =
-                    (out_buf - written)[0] == '-' ||
-                    (out_buf - written)[0] == '+' ||
-                    (out_buf - written)[0] == ' '; // space flag: ' ' <=> '+'
+                    start[0] == '-' ||
+                    start[0] == '+' ||
+                    start[0] == ' '; // space flag: ' ' <=> '+'
                 const bool has_0x =
-                    (out_buf - written)[1 + has_sign] == 'x' ||
-                    (out_buf - written)[1 + has_sign] == 'X';
+                    start[1 + has_sign] == 'x' ||
+                    start[1 + has_sign] == 'X';
                 const unsigned offset = has_sign + 2 * has_0x;
 
                 // Make foom for zeroes
@@ -431,22 +432,22 @@ int pf_vsprintf(
                 // printf("%#07x", 0x89)
                 //
                 // 0x89___
-                //      x    <- dest == out_buf - written + diff + offset
-                //   x       <- src  == out_buf - written + offset
+                //      x    <- dest == start + diff + offset
+                //   x       <- src  == start + offset
                 //   89      <- offset == strlen("0x") == 2 so these go
                 //      89   <- here
-                    out_buf - written + diff + offset,
-                    out_buf - written + offset,
+                    start + diff + offset,
+                    start + offset,
                     written - offset);
 
                 for (size_t i = 0; i < diff; i++) // fill in zeroes
-                    (out_buf - written + offset)[i] = '0';
+                    (start + offset)[i] = '0';
             }
             else
             {
-                memmove(out_buf - written + diff, out_buf - written, written);
+                memmove(start + diff, start, written);
                 for (size_t i = 0; i < diff; i++) // fill in spaces
-                    (out_buf - written)[i] = ' ';
+                    start[i] = ' ';
             }
 
             progress(&out_buf, &written, diff);
