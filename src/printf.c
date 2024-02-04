@@ -2,6 +2,12 @@
 #include "format_scanning.h"
 #include "conversions.h"
 
+struct PFString
+{
+    char* data;
+    size_t length;
+};
+
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
     switch (fmt.length_modifier)
@@ -59,7 +65,7 @@ static unsigned pad_zeroes(
 }
 
 static inline void
-progress(char* out_buf[static 1], unsigned written[static 1],unsigned u)
+progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
 {
     *written += u;
     *out_buf += u;
@@ -364,7 +370,78 @@ static unsigned write_f(
     return written;
 }
 
+static unsigned add_padding(
+    char* out_buf,
+    const unsigned written,
+    const PFFormatSpecifier fmt)
+{
+    char* const start = out_buf - written;
+    const unsigned diff = fmt.field.width - written;
+    const bool has_sign =
+        start[0] == '-' ||
+        start[0] == '+' ||
+        start[0] == ' '; // space flag: ' ' <=> '+'
+
+    const bool ignore_zero =
+    (
+        strchr("diouxX", fmt.conversion_format) != NULL &&
+        fmt.precision.option != PF_NONE
+    ) || (
+        start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
+        start[has_sign] == 'i' || start[has_sign] == 'I'    // "inf"
+    );
+
+    if (fmt.flag.dash) // left justified, append padding
+    {
+        for (size_t i = 0; i < diff; i++)
+            out_buf[i] = ' ';
+    }
+    else if (fmt.flag.zero && ! ignore_zero) // fill in zeroes
+    { // 0-padding minding "0x" or sign prefix
+        const bool has_0x =
+            start[1 + has_sign] == 'x' ||
+            start[1 + has_sign] == 'X';
+        const unsigned offset = has_sign + 2 * has_0x;
+
+        // Make foom for zeroes
+        memmove(
+        // printf("%#07x", 0x89)
+        //
+        // 0x89___
+        //      x    <- dest == start + diff + offset
+        //   x       <- src  == start + offset
+        //   89      <- offset == strlen("0x") == 2 so these go
+        //      89   <- here
+            start + diff + offset,
+            start + offset,
+            written - offset);
+
+        for (size_t i = 0; i < diff; i++)
+            (start + offset)[i] = '0';
+    }
+    else // fill in spaces
+    {
+        memmove(start + diff, start, written);
+        for (size_t i = 0; i < diff; i++)
+            start[i] = ' ';
+    }
+
+    return diff;
+}
+
+
+
 // ---------------------------------------------------------------------------
+//
+//
+//
+// IMPLEMENTATIONS OF PUBLIC FUNCTIONS
+//
+//
+//
+// ---------------------------------------------------------------------------
+
+
 
 int pf_vsnprintf(
     char out_buf[static 1],
@@ -373,7 +450,7 @@ int pf_vsnprintf(
     va_list args)
 {
     (void)max_size;
-    unsigned chars_written = 0;
+    struct PFString out = { out_buf };
 
     while (1)
     {
@@ -381,130 +458,83 @@ int pf_vsnprintf(
         if (fmt.string == NULL)
             break;
 
-        memcpy(out_buf, format, fmt.string - format);
-        chars_written += fmt.string - format;
-        out_buf       += fmt.string - format;
+        memcpy(out.data + out.length, format, fmt.string - format);
+        out.length += fmt.string - format;
 
         format = fmt.string + fmt.string_length;
 
-        // Number of characters written by converting format specifier
-        unsigned written = 0;
+        unsigned written_by_conversion = 0;
 
         switch (fmt.conversion_format)
         {
             case 'c':
-                out_buf[0] = (char)va_arg(args, int);
-                out_buf[1] = '\0';
-                progress(&out_buf, &written, strlen("x"));
+                out.data[out.length] = (char)va_arg(args, int);
+                written_by_conversion++;
                 break;
 
             case 's':
-                progress(&out_buf, &written, write_s(out_buf, &args, fmt));
+                written_by_conversion += write_s(
+                    out.data + out.length, &args, fmt);
                 break;
 
             case 'd':
             case 'i':
-                progress(&out_buf, &written, write_i(out_buf, &args, fmt));
+                written_by_conversion += write_i(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'o':
-                progress(&out_buf, &written, write_o(out_buf, &args, fmt));
+                written_by_conversion += write_o(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'x':
-                progress(&out_buf, &written, write_x(out_buf, &args, fmt));
+                written_by_conversion += write_x(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'X':
-                progress(&out_buf, &written, write_X(out_buf, &args, fmt));
+                written_by_conversion += write_X(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'u':
-                progress(&out_buf, &written, write_u(out_buf, &args, fmt));
+                written_by_conversion += write_u(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'p':
-                progress(&out_buf, &written, write_p(out_buf, &args, fmt));
+                written_by_conversion += write_p(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case 'f': case 'F':
             case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
-                progress(&out_buf, &written, write_f(out_buf, &args, fmt));
+                written_by_conversion += write_f(
+                    out_buf + out.length, &args, fmt);
                 break;
 
             case '%':
-                out_buf[0] = '%';
-                out_buf[1] = '\0';
-                progress(&out_buf, &written, strlen("%"));
+                out.data[out.length] = '%';
+                written_by_conversion++;
                 break;
         }
 
-        if (written < fmt.field.width) // add padding
-        {
-            char* const start = out_buf - written;
-            const unsigned diff = fmt.field.width - written;
-            const bool has_sign =
-                start[0] == '-' ||
-                start[0] == '+' ||
-                start[0] == ' '; // space flag: ' ' <=> '+'
-
-            const bool ignore_zero =
-            (
-                strchr("diouxX", fmt.conversion_format) != NULL &&
-                fmt.precision.option != PF_NONE
-            ) || (
-                start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
-                start[has_sign] == 'i' || start[has_sign] == 'I'    // "inf"
-            );
-
-            if (fmt.flag.dash) // left justified, append padding
-            {
-                for (size_t i = 0; i < diff; i++)
-                    out_buf[i] = ' ';
-            }
-            else if (fmt.flag.zero && ! ignore_zero) // fill in zeroes
-            { // 0-padding minding "0x" or sign prefix
-                const bool has_0x =
-                    start[1 + has_sign] == 'x' ||
-                    start[1 + has_sign] == 'X';
-                const unsigned offset = has_sign + 2 * has_0x;
-
-                // Make foom for zeroes
-                memmove(
-                // printf("%#07x", 0x89)
-                //
-                // 0x89___
-                //      x    <- dest == start + diff + offset
-                //   x       <- src  == start + offset
-                //   89      <- offset == strlen("0x") == 2 so these go
-                //      89   <- here
-                    start + diff + offset,
-                    start + offset,
-                    written - offset);
-
-                for (size_t i = 0; i < diff; i++)
-                    (start + offset)[i] = '0';
-            }
-            else // fill in spaces
-            {
-                memmove(start + diff, start, written);
-                for (size_t i = 0; i < diff; i++)
-                    start[i] = ' ';
-            }
-
-            progress(&out_buf, &written, diff);
-        }
-
-        chars_written += written;
+        out.length += written_by_conversion;
+        if (written_by_conversion < fmt.field.width)
+            out.length += add_padding(out.data + out.length, written_by_conversion, fmt);
     }
 
     // Write what's left in format string
-    strcpy(out_buf, format);
-    chars_written += strlen(format);
+    size_t tail_length = strlen(format);
+    memcpy(out.data + out.length, format, tail_length);
+    out.length += tail_length;
+    out.data[out.length] = '\0';
 
-    return chars_written;
+    //return chars_written;
+    return out.length;
 }
 
 int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args)
