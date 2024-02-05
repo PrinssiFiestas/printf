@@ -13,11 +13,15 @@ struct PFString
     size_t capacity;
 };
 
-// Returns smaller of cap_left or x.
-static size_t
-limit(const struct PFString me, const size_t x)
+static size_t capacity_left(const struct PFString me)
 {
-    const size_t cap_left = me.length >= me.capacity ? 0 : me.capacity - me.length;
+    return me.length >= me.capacity ? 0 : me.capacity - me.length;
+}
+
+// Useful for memcpy(), memmove(), memset(), etc.
+static size_t limit(const struct PFString me, const size_t x)
+{
+    const size_t cap_left = capacity_left(me);
     return cap_left < x ? cap_left : x;
 }
 
@@ -166,7 +170,7 @@ static unsigned write_i(
             i = (short)va_arg(*args, int);
             break;
 
-        case 'h' * 2: // Remember: signed char is NOT char!
+        case 'h' * 2: // signed char is NOT char!
             i = (signed char)va_arg(*args, int);
             break;
 
@@ -185,7 +189,7 @@ static unsigned write_i(
         push_char(out, sign);
 
     const unsigned max_written = pf_utoa(
-        limit(*out, SIZE_MAX), out->data + out->length, imaxabs(i));
+        capacity_left(*out), out->data + out->length, imaxabs(i));
 
     write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
@@ -207,7 +211,7 @@ static unsigned write_o(
     }
 
     const unsigned max_written = pf_otoa(
-        limit(*out, SIZE_MAX), out->data + out->length, u);
+        capacity_left(*out), out->data + out->length, u);
 
     // zero_written tells pad_zeroes() to add 1 less '0'
     write_leading_zeroes(out, zero_written + max_written, fmt);
@@ -229,7 +233,7 @@ static unsigned write_x(
     concat(out, _0x, strlen(_0x));
 
     const unsigned max_written = pf_xtoa(
-        limit(*out, SIZE_MAX), out->data + out->length, u);
+        capacity_left(*out), out->data + out->length, u);
 
     write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
@@ -247,7 +251,7 @@ static unsigned write_X(
     concat(out, _0x, strlen(_0x));
 
     const unsigned max_written = pf_Xtoa(
-        limit(*out, SIZE_MAX), out->data + out->length, u);
+        capacity_left(*out), out->data + out->length, u);
 
     write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
@@ -261,7 +265,7 @@ static unsigned write_u(
     const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
     const unsigned max_written = pf_utoa(
-        limit(*out, SIZE_MAX), out->data + out->length, u);
+        capacity_left(*out), out->data + out->length, u);
     write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
 }
@@ -278,7 +282,7 @@ static unsigned write_p(
     {
         concat(out, "0x", strlen("0x"));
         const unsigned max_written = pf_xtoa(
-            limit(*out, SIZE_MAX), out->data + out->length, u);
+            capacity_left(*out), out->data + out->length, u);
         write_leading_zeroes(out, max_written, fmt);
     }
     else
