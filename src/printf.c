@@ -13,6 +13,7 @@ struct PFString
     size_t capacity;
 };
 
+// Returns smaller of cap_left or x.
 static size_t
 limit(const struct PFString me, const size_t x)
 {
@@ -39,8 +40,13 @@ static void push_char(struct PFString* me, const char c)
     me->length++;
 }
 
+// ---------------------------------------------------------------------------
+
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
+    if (fmt.conversion_format == 'p')
+        return va_arg(*args, uintptr_t);
+
     switch (fmt.length_modifier)
     {
         case 'j':
@@ -64,35 +70,6 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
         default:
             return va_arg(*args, unsigned);
     }
-}
-
-static unsigned pad_zeroes(
-    char out_buf[static 1],
-    const PFFormatSpecifier fmt,
-    unsigned written)
-{
-    if (fmt.precision.option != PF_NONE && written < fmt.precision.width)
-    {
-        int diff = fmt.precision.width - written;
-
-        // Make room for zeroes
-        memmove(out_buf + diff, out_buf, written);
-
-        // Write zeroes
-        while (diff > 0)
-        {
-            const char* zeroes = "0000""0000""0000""0000";
-            const int zeroes_len = (int)strlen(zeroes);
-            const int _max = diff >= zeroes_len ?
-                zeroes_len : diff;
-
-            memcpy(out_buf, zeroes, _max);
-            diff    -= zeroes_len;
-            out_buf += zeroes_len;
-        }
-        written = fmt.precision.width;
-    }
-    return written;
 }
 
 static inline void
@@ -142,20 +119,27 @@ static unsigned write_s(
     return out->length - original_length;
 }
 
-static void _pad_zeroes(
+static void write_leading_zeroes(
     struct PFString out[static 1],
     const unsigned written_by_utoa,
     const PFFormatSpecifier fmt)
 {
-    const unsigned diff =
-        fmt.precision.width <= written_by_utoa ? 0 :
-        fmt.precision.width - written_by_utoa;
-    memmove(
-        out->data + out->length + diff,
-        out->data + out->length,
-        limit(*out, written_by_utoa));
-    memset(out->data + out->length, '0', limit(*out, diff));
-    out->length += written_by_utoa + diff;
+    if (fmt.precision.option != PF_NONE)
+    {
+        const unsigned diff =
+            fmt.precision.width <= written_by_utoa ? 0 :
+            fmt.precision.width - written_by_utoa;
+        memmove(
+            out->data + out->length + diff,
+            out->data + out->length,
+            limit(*out, written_by_utoa));
+        memset(out->data + out->length, '0', limit(*out, diff));
+        out->length += written_by_utoa + diff;
+    }
+    else
+    {
+        out->length += written_by_utoa;
+    }
 }
 
 static unsigned write_i(
@@ -200,17 +184,10 @@ static unsigned write_i(
     if (sign)
         push_char(out, sign);
 
-    if (fmt.precision.option != PF_NONE)
-    {
-        _pad_zeroes(out, pf_utoa(
-            limit(*out, SIZE_MAX), out->data + out->length, imaxabs(i)),
-        fmt);
-    }
-    else
-    {
-        out->length += pf_utoa(
-            limit(*out, SIZE_MAX), out->data + out->length, imaxabs(i));
-    }
+    const unsigned max_written = pf_utoa(
+        limit(*out, SIZE_MAX), out->data + out->length, imaxabs(i));
+
+    write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
 }
 
@@ -229,19 +206,13 @@ static unsigned write_o(
         zero_written = true;
     }
 
-    if (fmt.precision.option != PF_NONE)
-    {
-        // zero_written tells pad_zeroes() to add 1 less '0'
-        _pad_zeroes(out, zero_written + pf_otoa(
-            limit(*out, SIZE_MAX), out->data + out->length, u),
-        fmt);
-        out->length -= zero_written; // compensate added '0' for pad_zeroes()
-    }
-    else
-    {
-        out->length += pf_otoa(
-            limit(*out, SIZE_MAX), out->data + out->length, u);
-    }
+    const unsigned max_written = pf_otoa(
+        limit(*out, SIZE_MAX), out->data + out->length, u);
+
+    // zero_written tells pad_zeroes() to add 1 less '0'
+    write_leading_zeroes(out, zero_written + max_written, fmt);
+    // compensate for added zero_written to write_leading_zeroes()
+    out->length -= zero_written;
 
     return out->length - original_length;
 }
@@ -257,69 +228,64 @@ static unsigned write_x(
     const char* _0x = fmt.flag.hash && u > 0 ? "0x" : "";
     concat(out, _0x, strlen(_0x));
 
-    if (fmt.precision.option != PF_NONE)
-    {
-        _pad_zeroes(out, pf_xtoa(
-            limit(*out, SIZE_MAX), out->data + out->length, u),
-        fmt);
-    }
-    else
-    {
-        out->length += pf_xtoa(
-            limit(*out, SIZE_MAX), out->data + out->length, u);
-    }
+    const unsigned max_written = pf_xtoa(
+        limit(*out, SIZE_MAX), out->data + out->length, u);
 
+    write_leading_zeroes(out, max_written, fmt);
     return out->length - original_length;
 }
 
 static unsigned write_X(
-    char out_buf[static 1],
+    struct PFString out[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
+    const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
-    const unsigned written = pf_Xtoa(SIZE_MAX, out_buf, u);
 
-    if (fmt.flag.hash && u > 0)
-    {
-        memmove(out_buf + strlen("0X"), out_buf, written);
-        memcpy(out_buf, "0X", strlen("0X"));
+    const char* _0x = fmt.flag.hash && u > 0 ? "0X" : "";
+    concat(out, _0x, strlen(_0x));
 
-        return strlen("0X") + pad_zeroes(
-            out_buf + strlen("0X"), fmt, written);
-    }
-    else
-        return pad_zeroes(out_buf, fmt, written);
+    const unsigned max_written = pf_Xtoa(
+        limit(*out, SIZE_MAX), out->data + out->length, u);
+
+    write_leading_zeroes(out, max_written, fmt);
+    return out->length - original_length;
 }
 
 static unsigned write_u(
-    char out_buf[static 1],
+    struct PFString out[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    uintmax_t u = get_uint(args, fmt);
-    const unsigned written = pf_utoa(SIZE_MAX, out_buf, u);
-    return pad_zeroes(out_buf, fmt, written);
+    const size_t original_length = out->length;
+    const uintmax_t u = get_uint(args, fmt);
+    const unsigned max_written = pf_utoa(
+        limit(*out, SIZE_MAX), out->data + out->length, u);
+    write_leading_zeroes(out, max_written, fmt);
+    return out->length - original_length;
 }
 
 static unsigned write_p(
-    char out_buf[static 1],
+    struct PFString out[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
+    const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
 
     if (u > 0)
     {
-        strcpy(out_buf, "0x");
-        return strlen("0x") + pad_zeroes(
-            out_buf + strlen("0x"), fmt, pf_xtoa(SIZE_MAX, out_buf + strlen("0x"), u));
+        concat(out, "0x", strlen("0x"));
+        const unsigned max_written = pf_xtoa(
+            limit(*out, SIZE_MAX), out->data + out->length, u);
+        write_leading_zeroes(out, max_written, fmt);
     }
     else
     {
-        strcpy(out_buf, "(nil)");
-        return strlen("(nil)");
+        concat(out, "(nil)", strlen("(nil)"));
     }
+    return out->length - original_length;
 }
 
 static unsigned write_f(
@@ -516,11 +482,8 @@ int pf_vsnprintf(
         const PFFormatSpecifier fmt = scan_format_string(format, &args);
         if (fmt.string == NULL)
             break;
-// TODO concat()
-        memcpy(out.data + out.length, format, limit(out, fmt.string - format));
-        out.length += fmt.string - format;
 
-        format = fmt.string + fmt.string_length;
+        concat(&out, format, fmt.string - format);
 
         unsigned written_by_conversion = 0;
 
@@ -554,17 +517,17 @@ int pf_vsnprintf(
 
             case 'X':
                 written_by_conversion += write_X(
-                    out_buf + out.length, &args, fmt);
+                    &out, &args, fmt);
                 break;
 
             case 'u':
                 written_by_conversion += write_u(
-                    out_buf + out.length, &args, fmt);
+                    &out, &args, fmt);
                 break;
 
             case 'p':
                 written_by_conversion += write_p(
-                    out_buf + out.length, &args, fmt);
+                    &out, &args, fmt);
                 break;
 
             case 'f': case 'F':
@@ -584,12 +547,15 @@ int pf_vsnprintf(
          // TEMP ignore already added length. When write_*() functions are
          // refactored to handle length, everyting is ignored which obviously is
          // the time to remove these 2 lines.
-        if (!strchr("csdiox", fmt.conversion_format))
+        if (!strchr("csdioxXup", fmt.conversion_format))
             out.length += written_by_conversion;
 
         if (written_by_conversion < fmt.field.width)
             out.length += add_padding(
                 out.data + out.length, written_by_conversion, fmt);
+
+        // Jump over format specifier
+        format = fmt.string + fmt.string_length;
     }
 
     // Write what's left in format string
