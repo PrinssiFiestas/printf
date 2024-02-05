@@ -32,6 +32,13 @@ static void pad(struct PFString* me, const char c, const size_t length)
     me->length += length;
 }
 
+static void push_char(struct PFString* me, const char c)
+{
+    if (limit(*me, 1) != 0)
+        me->data[me->length] = c;
+    me->length++;
+}
+
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
     switch (fmt.length_modifier)
@@ -174,52 +181,67 @@ static unsigned write_i(
     const size_t original_length = out->length;
 
     const char sign = i < 0 ? '-' : fmt.flag.plus ? '+' : fmt.flag.space ? ' ' : 0;
-    if (sign) // add sign
-    {
-        if (limit(*out, 1) != 0)
-            out->data[out->length] = sign;
-        out->length++;
-    }
+    if (sign)
+        push_char(out, sign);
 
     if (fmt.precision.option != PF_NONE)
     {
         const unsigned max_digits_written = pf_utoa(
-            out->capacity - out->length, out->data + out->length, imaxabs(i));
+            limit(*out, MAX_DIGITS), out->data + out->length, imaxabs(i));
         const unsigned diff =
             fmt.precision.width <= max_digits_written ? 0 :
             fmt.precision.width - max_digits_written;
         memmove(
             out->data + out->length + diff,
             out->data + out->length,
-            max_digits_written);
+            limit(*out, max_digits_written));
         memset(out->data + out->length, '0', diff);
         out->length += max_digits_written + diff;
     }
     else
     {
         out->length += pf_utoa(
-            out->capacity - out->length, out->data + out->length, imaxabs(i));
+            limit(*out, MAX_DIGITS), out->data + out->length, imaxabs(i));
     }
     return out->length - original_length;
 }
 
 static unsigned write_o(
-    char out_buf[static 1],
+    struct PFString* out,
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
+    const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
-    const unsigned written = pf_otoa(SIZE_MAX, out_buf, u);
 
+    bool zero_written = false;
     if (fmt.flag.hash && u > 0)
     {
-        memmove(out_buf + strlen("0"), out_buf, written);
-        out_buf[0] = '0';
+        push_char(out, '0');
+        zero_written = true;
+    }
 
-        return pad_zeroes(out_buf, fmt, written + strlen("."));
+    if (fmt.precision.option != PF_NONE)
+    {
+        const unsigned max_digits_written = pf_otoa(
+            limit(*out, MAX_DIGITS), out->data + out->length, u) + zero_written;
+        const unsigned diff =
+            fmt.precision.width <= max_digits_written ? 0 :
+            fmt.precision.width - max_digits_written;
+        memmove(
+            out->data + out->length + diff,
+            out->data + out->length,
+            limit(*out, max_digits_written));
+        memset(out->data + out->length, '0', diff);
+        out->length += max_digits_written + diff - zero_written;
     }
     else
-        return pad_zeroes(out_buf, fmt, written);
+    {
+        out->length += pf_otoa(
+            limit(*out, MAX_DIGITS), out->data + out->length, u);
+    }
+
+    return out->length - original_length;
 }
 
 static unsigned write_x(
@@ -486,7 +508,7 @@ int pf_vsnprintf(
         const PFFormatSpecifier fmt = scan_format_string(format, &args);
         if (fmt.string == NULL)
             break;
-
+// TODO concat()
         memcpy(out.data + out.length, format, limit(out, fmt.string - format));
         out.length += fmt.string - format;
 
@@ -497,9 +519,7 @@ int pf_vsnprintf(
         switch (fmt.conversion_format)
         {
             case 'c':
-                if (limit(out, 1) != 0)
-                    out.data[out.length] = (char)va_arg(args, int);
-                out.length++;
+                push_char(&out, (char)va_arg(args, int));
                 written_by_conversion = 1;
                 break;
 
@@ -516,7 +536,7 @@ int pf_vsnprintf(
 
             case 'o':
                 written_by_conversion += write_o(
-                    out_buf + out.length, &args, fmt);
+                    &out, &args, fmt);
                 break;
 
             case 'x':
@@ -556,7 +576,7 @@ int pf_vsnprintf(
          // TEMP ignore already added length. When write_*() functions are
          // refactored to handle length, everyting is ignored which obviously is
          // the time to remove these 2 lines.
-        if (!strchr("csdi", fmt.conversion_format))
+        if (!strchr("csdio", fmt.conversion_format))
             out.length += written_by_conversion;
 
         if (written_by_conversion < fmt.field.width)
