@@ -2,6 +2,7 @@
 #include "format_scanning.h"
 #include "conversions.h"
 #include <inttypes.h>
+#include <math.h>
 
 struct PFString
 {
@@ -75,13 +76,6 @@ static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
             return va_arg(*args, unsigned);
     }
 }
-
-static inline void
-progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
-{
-    *written += u;
-    *out_buf += u;
-};
 
 static unsigned write_s(
     struct PFString* out,
@@ -292,13 +286,22 @@ static unsigned write_p(
     return out->length - original_length;
 }
 
+static inline void
+progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
+{
+    *written += u;
+    *out_buf += u;
+};
+
 static unsigned write_f(
-    char out_buf[static 1],
+    struct PFString out[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    char* const start = out_buf;
-    unsigned written = 0;
+    //char* const start = out_buf; // <---------
+    char* const start = out->data + out->length;
+    // unsigned written = 0; // <----------
+    const size_t original_length = out->length;
 
     // strfromd() doesn't take flags or field width so fmt.string needs to be
     // trimmed.
@@ -309,22 +312,56 @@ static unsigned write_f(
         ffmt,
         fmt.string + fmt.string_length - ffmt);
 
-    char lmod = fmt.length_modifier;
-    if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
-        progress(&out_buf, &written, strfroml(
-            out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-            va_arg(*args, long double)));
-    else
-        progress(&out_buf, &written, strfromd(
-            out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-            va_arg(*args, double)));
+    const bool is_long =
+        fmt.length_modifier == 'L' ||
+        fmt.length_modifier == 'l' ||
+        fmt.length_modifier == 'l' * 2;
+    double f;
+    long double lf;
+    //char lmod = fmt.length_modifier;
+    //if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
+//         progress(&out_buf, &written, strfroml(
+//             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+//             va_arg(*args, long double)));
+        //out->length += strfroml( // NEW
+        //    out->data + out->length, capacity_left(*out), simplified_fmt, //NEW
+        //    va_arg(*args, long double)); // NEW
+    //else
+//         progress(&out_buf, &written, strfromd(
+//             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
+//             va_arg(*args, double)));
+        //out->length += strfromd( // NEW
+          //  out->data + out->length, capacity_left(*out), simplified_fmt, // NEW
+            //va_arg(*args, double)); // NEW
 
-    if ((fmt.flag.plus || fmt.flag.space) && start[0] != '-')
-    { // write plus or space if positive
-        memmove(start + strlen("+"), start, written);
-        start[0] = fmt.flag.plus ? '+' : ' ';
-        progress(&out_buf, &written, strlen("+"));
-    }
+    // if ((fmt.flag.plus || fmt.flag.space) && start[0] != '-')
+    // { // write plus or space if positive
+    //     memmove(start + strlen("+"), start, written);
+    //     start[0] = fmt.flag.plus ? '+' : ' ';
+    //     progress(&out_buf, &written, strlen("+"));
+    // }
+    if (is_long)
+        lf = va_arg(*args, long double);
+    else
+        f = va_arg(*args, double);
+
+    const bool is_positive = (is_long && !signbit(lf)) || (!is_long && !signbit(f));
+    if (is_positive && fmt.flag.plus)
+        push_char(out, '+');
+    else if (is_positive && fmt.flag.space)
+        push_char(out, ' ');
+
+    if (is_long)
+        out->length += strfroml(
+            out->data + out->length, capacity_left(*out), simplified_fmt, lf);
+    else
+        out->length += strfromd(
+            out->data + out->length, capacity_left(*out), simplified_fmt, f);
+
+    // OLD IMPLEMENTATION, GET RID OF THESE. Just write directly to out.
+    char* out_buf = out->data + out->length; // <-------------------------------
+    unsigned written = out->length - original_length; // <----------------------
+    const unsigned TEMP_written_original = written; // <------------------------
 
     if (fmt.flag.hash)
     {
@@ -397,6 +434,7 @@ static unsigned write_f(
             }
         }
     }
+    out->length += written - TEMP_written_original;
     return written;
 }
 
@@ -539,20 +577,13 @@ int pf_vsnprintf(
             case 'a': case 'A':
             case 'g': case 'G':
                 written_by_conversion += write_f(
-                    out_buf + out.length, &args, fmt);
+                    &out, &args, fmt);
                 break;
 
             case '%':
-                out.data[out.length] = '%';
-                written_by_conversion++;
+                push_char(&out, '%');
                 break;
         }
-
-         // TEMP ignore already added length. When write_*() functions are
-         // refactored to handle length, everyting is ignored which obviously is
-         // the time to remove these 2 lines.
-        if (!strchr("csdioxXup", fmt.conversion_format))
-            out.length += written_by_conversion;
 
         if (written_by_conversion < fmt.field.width)
             out.length += add_padding(
@@ -568,7 +599,6 @@ int pf_vsnprintf(
     out.length += tail_length;
     out.data[out.length] = '\0';
 
-    //return chars_written;
     return out.length;
 }
 
