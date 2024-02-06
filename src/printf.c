@@ -3,6 +3,7 @@
 #include "conversions.h"
 #include <inttypes.h>
 #include <math.h>
+#include <ctype.h>
 
 struct PFString
 {
@@ -298,9 +299,7 @@ static unsigned write_f(
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
-    //char* const start = out_buf; // <---------
     char* const start = out->data + out->length;
-    // unsigned written = 0; // <----------
     const size_t original_length = out->length;
 
     // strfromd() doesn't take flags or field width so fmt.string needs to be
@@ -312,40 +311,23 @@ static unsigned write_f(
         ffmt,
         fmt.string + fmt.string_length - ffmt);
 
+    // Long double has poor support across systems. I recall MinGW GCC being
+    // happy to compile a program with long doubles just for them not to work
+    // at all at runtime. I can't remember how it failed though so test some
+    // day that using a long double with 0.L doesn't cause problems.
+    long double lf = 0.L;
+    double f = 0.;
     const bool is_long =
         fmt.length_modifier == 'L' ||
         fmt.length_modifier == 'l' ||
         fmt.length_modifier == 'l' * 2;
-    double f;
-    long double lf;
-    //char lmod = fmt.length_modifier;
-    //if (lmod == 'L' || lmod == 'l' || lmod == 2 * 'l')
-//         progress(&out_buf, &written, strfroml(
-//             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-//             va_arg(*args, long double)));
-        //out->length += strfroml( // NEW
-        //    out->data + out->length, capacity_left(*out), simplified_fmt, //NEW
-        //    va_arg(*args, long double)); // NEW
-    //else
-//         progress(&out_buf, &written, strfromd(
-//             out_buf, SIZE_MAX / 2 - 1, simplified_fmt,
-//             va_arg(*args, double)));
-        //out->length += strfromd( // NEW
-          //  out->data + out->length, capacity_left(*out), simplified_fmt, // NEW
-            //va_arg(*args, double)); // NEW
-
-    // if ((fmt.flag.plus || fmt.flag.space) && start[0] != '-')
-    // { // write plus or space if positive
-    //     memmove(start + strlen("+"), start, written);
-    //     start[0] = fmt.flag.plus ? '+' : ' ';
-    //     progress(&out_buf, &written, strlen("+"));
-    // }
     if (is_long)
         lf = va_arg(*args, long double);
     else
         f = va_arg(*args, double);
 
-    const bool is_positive = (is_long && !signbit(lf)) || (!is_long && !signbit(f));
+//const bool is_positive = (is_long && !signbit(lf)) || (!is_long && !signbit(f));
+    const bool is_positive = !signbit(lf) && !signbit(f);
     if (is_positive && fmt.flag.plus)
         push_char(out, '+');
     else if (is_positive && fmt.flag.space)
@@ -358,41 +340,54 @@ static unsigned write_f(
         out->length += strfromd(
             out->data + out->length, capacity_left(*out), simplified_fmt, f);
 
-    // OLD IMPLEMENTATION, GET RID OF THESE. Just write directly to out.
-    char* out_buf = out->data + out->length; // <-------------------------------
-    unsigned written = out->length - original_length; // <----------------------
-    const unsigned TEMP_written_original = written; // <------------------------
-
-    if (fmt.flag.hash)
+    const bool is_nan_or_inf = isnan(lf) || isnan(f) || isinf(lf) || isinf(f);
+    if (fmt.flag.hash && ! is_nan_or_inf)
     {
-        char* decimal_point = memchr(start, '.', written);
+        // Better not to use math functions due to floating point errors. All we
+        // care about is did strfromd() write a decimal point or not.
+        //char* decimal_point = memchr(start, '.', written);
+        // UNSAFE fix this!
+        char* decimal_point = memchr(start, '.', out->length - original_length);
         const bool is_whole_num = ! decimal_point;
         const bool has_sign = strchr("+ -", start[0]) != NULL;
-        char* exponent = memchr(start, 'e', written);
+        //char* exponent = memchr(start, 'e', written);
+        //UNSAFE fix this!
+        char* exponent = memchr(start, 'e', out->length - original_length);
         if ( ! exponent) // try again
-            exponent = memchr(start, 'E', written);
-        const bool is_nan_or_inf =
-            start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
-            start[has_sign] == 'i' || start[has_sign] == 'I';   // "inf"
+            //exponent = memchr(start, 'E', written);
+            //UNSAFE fix this!
+            exponent = memchr(start, 'E', out->length - original_length);
 
-        if ( ! decimal_point && ! is_nan_or_inf) // write point
+        if ( ! decimal_point) // write point
         {
             if (exponent)
             {
-                memmove(exponent + strlen("."), exponent, out_buf - exponent);
+                // memmove(exponent + strlen("."), exponent, out_buf - exponent);
+                // (decimal_point = exponent)[0] = '.';
+                // exponent += strlen(".");
+                memmove(exponent + strlen("."), exponent,
+                    out->data + out->length - exponent - !capacity_left(*out));
                 (decimal_point = exponent)[0] = '.';
                 exponent += strlen(".");
+                out->length++;
             }
             else
             {
-                (decimal_point = out_buf)[0] = '.';
+                //(decimal_point = out_buf)[0] = '.';
+                decimal_point = out->data + out->length; // is this safe??
+                push_char(out, '.');
             }
-            progress(&out_buf, &written, strlen("."));
+            //progress(&out_buf, &written, strlen("."));
+
         }
+        // OLD IMPLEMENTATION, GET RID OF THESE. Just write directly to out.
+        char* out_buf = out->data + out->length; // <---------------------------
+        unsigned written = out->length - original_length; // <------------------
+        const unsigned TEMP_written_original = written; // <--------------------
+
         out_buf[0] = '\0'; // for strspn()
 
-        if ((fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
-            && ! is_nan_or_inf)
+        if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
         {
             unsigned significant_digits_written = 0;
             if (is_whole_num)
@@ -433,9 +428,14 @@ static unsigned write_f(
                 progress(&out_buf, &written, diff);
             }
         }
+        out->length += written - TEMP_written_original;
+        return written;
     }
-    out->length += written - TEMP_written_original;
-    return written;
+    //out->length += written - TEMP_written_original;
+    //return written;
+
+    // NEW
+    return out->length - original_length;
 }
 
 static unsigned add_padding(
