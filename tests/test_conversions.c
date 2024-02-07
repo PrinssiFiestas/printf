@@ -49,23 +49,20 @@ int main(void)
         }
     } // gp_suite("Integer conversions");
 
-    // TODO
-    // gp_suite("Float conversions");
+    gp_suite("Float conversions");
     {
+        char buf[2000] = "";
+        //char buf_std[sizeof(buf)] = "";
 
-        // ---------- Internal tests ----------- //
+        double f = 0.;
+        int return_value = 0;
 
-        // Change the values for the #if directives to test float endianness.
-        // Note: Endiannes of floats might differ from integer endiannes!
-        #if 0
-        gp_test("Float endiannes");
+        gp_test("ftoa normals");
         {
-            #if 1 // little endian
-                gp_expect(little_endian_double());
-            #else // big endian
-                gp_expect( ! little_endian_double());
-            #endif
+            f = 3.14;
+            return_value = pf_ftoa(SIZE_MAX, buf, 6, f);
+            gp_expect(0,
+                (buf), (return_value));
         }
-        #endif
     }
 }

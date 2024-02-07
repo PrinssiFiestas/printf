@@ -1,52 +1,10 @@
 #include <printf/printf.h>
 #include "format_scanning.h"
 #include "conversions.h"
+#include "pfstring.h"
 #include <inttypes.h>
 #include <math.h>
 #include <ctype.h>
-
-struct PFString
-{
-    // length is used to store the return value of printf() so it may exceed
-    // capacity.
-
-    char* data;
-    size_t length;
-    size_t capacity;
-};
-
-static size_t capacity_left(const struct PFString me)
-{
-    return me.length >= me.capacity ? 0 : me.capacity - me.length;
-}
-
-// Useful for memcpy(), memmove(), memset(), etc.
-static size_t limit(const struct PFString me, const size_t x)
-{
-    const size_t cap_left = capacity_left(me);
-    return cap_left < x ? cap_left : x;
-}
-
-static void concat(struct PFString* me, const char* src, const size_t length)
-{
-    memcpy(me->data + me->length, src, limit(*me, length));
-    me->length += length;
-}
-
-static void pad(struct PFString* me, const char c, const size_t length)
-{
-    memset(me->data + me->length, c, limit(*me, length));
-    me->length += length;
-}
-
-static void push_char(struct PFString* me, const char c)
-{
-    if (limit(*me, 1) != 0)
-        me->data[me->length] = c;
-    me->length++;
-}
-
-// ---------------------------------------------------------------------------
 
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
@@ -417,11 +375,18 @@ static unsigned write_f(
             if (precision > significant_digits_written) // write trailing zeroes
             {
                 const unsigned diff = precision - significant_digits_written;
+                // ---------------------------
+                //
+                // Exponent may be moved out of bounds when writing comma. Here
+                // it may cause problems and need to be fixed!
+                //
+                // --------------------------
                 if (exponent) // make room for zeroes
                     memmove(exponent + diff, exponent, out_buf - exponent);
 
                 char* end_of_digits = decimal_point + strlen(".");
                 end_of_digits += strspn(end_of_digits, "0123456789");
+                // TODO use pad() instead!
                 for (size_t i = 0; i < diff; i++)
                     end_of_digits[i] = '0';
 
