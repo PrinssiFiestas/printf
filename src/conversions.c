@@ -1,4 +1,5 @@
 #include "conversions.h"
+#include "format_scanning.h"
 #include "d2s_full_table.h"
 #include <math.h>
 
@@ -96,28 +97,62 @@ unsigned pf_Xtoa(const size_t n, char* buf, uintmax_t x)
 
 // ---------------------------------------------------------------------------
 
-#define UPPERCASE true
-#define LOWERCASE false
-#define G_SPECIFIER true
-#define NOT_G_SPECIFIER false
-
 static unsigned
 pf_d2fixed_buffered_n(
     char* result,
     size_t n,
-    uint32_t precision,
-    double d,
-    bool uppercase,
-    bool g_specifier); // for dynamic precision
+    PFFormatSpecifier fmt,
+    double d);
 
-unsigned pf_ftoa(const size_t n, char* buf, const unsigned precision, const double f)
+unsigned
+pf_ftoa(const size_t n, char* buf, const double f)
 {
-    return pf_d2fixed_buffered_n(buf, n, precision, f, LOWERCASE, NOT_G_SPECIFIER);
+    const PFFormatSpecifier fmt = {.conversion_format = 'f'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
-unsigned pf_Ftoa(const size_t n, char* buf, const unsigned precision, const double f)
+unsigned
+pf_Ftoa(const size_t n, char* buf, const double f)
 {
-    return pf_d2fixed_buffered_n(buf, n, precision, f, UPPERCASE, NOT_G_SPECIFIER);
+    const PFFormatSpecifier fmt = {.conversion_format = 'F'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+}
+
+unsigned
+pf_etoa(const size_t n, char* buf, const double f)
+{
+    const PFFormatSpecifier fmt = {.conversion_format = 'e'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+}
+
+unsigned
+pf_Etoa(const size_t n, char* buf, const double f)
+{
+    const PFFormatSpecifier fmt = {.conversion_format = 'E'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+}
+
+unsigned
+pf_gtoa(const size_t n, char* buf, const double f)
+{
+    const PFFormatSpecifier fmt = {.conversion_format = 'g'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+}
+
+unsigned
+pf_Gtoa(const size_t n, char* buf, const double f)
+{
+    const PFFormatSpecifier fmt = {.conversion_format = 'G'};
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+}
+
+unsigned pf_strfromd(
+    char* restrict buf,
+    const size_t n,
+    const PFFormatSpecifier fmt,
+    const double f)
+{
+    return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 // ---------------------------------------------------------------------------
@@ -362,15 +397,18 @@ pf_copy_special_str_printf(
 
 static unsigned
 pf_d2fixed_buffered_n(
-    char* result,
+    char* const result,
     size_t n,
-    uint32_t precision,
-    double d,
-    bool uppercase,
-    bool g_specifier) // for dynamic precision
+    const PFFormatSpecifier fmt,
+    double d)
 {
-    (void)g_specifier;
     struct PFString out = { result, .capacity = n };
+    unsigned precision;
+    if (fmt.precision.option == PF_SOME)
+        precision = fmt.precision.width;
+    else
+        precision = 6;
+
     const uint64_t bits = double_to_bits(d);
 
     // Decode bits into sign, mantissa, and exponent.
@@ -383,24 +421,20 @@ pf_d2fixed_buffered_n(
     // Case distinction; exit early for the easy cases.
     if (ieeeExponent == ((1u << DOUBLE_EXPONENT_BITS) - 1u))
     {
-        //return pf_copy_special_str_printf(result, ieeeSign, ieeeMantissa);
+        const bool uppercase =
+            fmt.conversion_format == 'F' || fmt.conversion_format == 'G';
         return pf_copy_special_str_printf(&out, ieeeSign, ieeeMantissa, uppercase);
     }
-    if (ieeeExponent == 0 && ieeeMantissa == 0)
+    if (ieeeExponent == 0 && ieeeMantissa == 0) // d == 0.0
     {
-        int index = 0;
         if (ieeeSign)
-        {
-            result[index++] = '-';
-        }
-        result[index++] = '0';
-        if (precision > 0)
-        {
-            result[index++] = '.';
-            memset(result + index, '0', precision);
-            index += precision;
-        }
-        return index;
+            push_char(&out, '-');
+        push_char(&out, '0');
+
+        if (precision > 0 || fmt.flag.hash)
+            push_char(&out, '.');
+        pad(&out, '0', precision);
+        return out.length;
     }
 
     int32_t e2;

@@ -60,9 +60,9 @@ int main(void)
         gp_test("ftoa normals");
         {
             f = 3.14;
-            return_value = pf_ftoa(SIZE_MAX, buf, 6, f);
-            gp_expect(0,
-                (buf), (return_value));
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            gp_expect(memcmp(buf, "3.140000", strlen("3.140000")) == 0, (buf));
+            gp_expect(return_value == strlen("3.140000"), (return_value));
         }
     }
 }
