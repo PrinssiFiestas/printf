@@ -84,6 +84,10 @@ int main(void)
             gp_expect(memcmp(buf, "0.123000", strlen("0.123000")) == 0, (buf));
             gp_expect(return_value == strlen("0.123000"), (return_value));
 
+            f = 0.012345678909876; // Note how 5 rounds up to 6
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
+            gp_expect(return_value == strlen("0.012346"), (return_value));
         }
     }
 }

@@ -134,49 +134,49 @@ pf_d2fixed_buffered_n(
     double d);
 
 unsigned
-pf_ftoa(const size_t n, char* buf, const double f)
+pf_ftoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'f'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
-pf_Ftoa(const size_t n, char* buf, const double f)
+pf_Ftoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'F'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
-pf_etoa(const size_t n, char* buf, const double f)
+pf_etoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'e'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
-pf_Etoa(const size_t n, char* buf, const double f)
+pf_Etoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'E'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
-pf_gtoa(const size_t n, char* buf, const double f)
+pf_gtoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'g'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
-pf_Gtoa(const size_t n, char* buf, const double f)
+pf_Gtoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'G'};
     return pf_d2fixed_buffered_n(buf, n, fmt, f);
 }
 
 unsigned pf_strfromd(
-    char* restrict buf,
+    char* const buf,
     const size_t n,
     const PFFormatSpecifier fmt,
     const double f)
@@ -394,10 +394,10 @@ static inline uint32_t lengthForIndex(const uint32_t idx)
 
 static inline int
 pf_copy_special_str_printf(
-    struct PFString out[static 1],
+    struct PFString out[const static 1],
     const bool sign,
     const uint64_t mantissa,
-    bool uppercase)
+    const bool uppercase)
 {
     if (mantissa != 0)
     {
@@ -415,9 +415,9 @@ pf_copy_special_str_printf(
 static unsigned
 pf_d2fixed_buffered_n(
     char* const result,
-    size_t n,
+    const size_t n,
     const PFFormatSpecifier fmt,
-    double d)
+    const double d)
 {
     struct PFString out = { result, .capacity = n };
     unsigned precision;
@@ -529,7 +529,6 @@ pf_d2fixed_buffered_n(
             i = MIN_BLOCK_2[idx];
             pad(&out, '0', 9 * i);
         }
-        int index = out.length; // TODO <------------
 
         for (; i < blocks; ++i)
         {
@@ -538,19 +537,27 @@ pf_d2fixed_buffered_n(
             if (p >= POW10_OFFSET_2[idx + 1])
             {
                 // If the remaining digits are all 0, then we might as well use
-                // memset.
+                // pad().
                 // No rounding required in this case.
                 const uint32_t fill = precision - 9 * i;
-                memset(result + index, '0', fill);
-                index += fill;
+                pad(&out, '0', fill);
                 break;
             }
 
             uint32_t digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
             if (i < blocks - 1)
             {
-                append_nine_digits(digits, result + index);
-                index += 9;
+                if (capacity_left(out) >= 9) // write directly
+                {
+                    append_nine_digits(digits, out.data + out.length);
+                    out.length += 9;
+                }
+                else // write only as much fits
+                {
+                    char buf[10];
+                    append_nine_digits(digits, buf);
+                    concat(&out, buf, 9);
+                }
             }
             else
             {
@@ -573,16 +580,27 @@ pf_d2fixed_buffered_n(
                     const bool trailingZeros = requiredTwos <= 0 ||
                         (requiredTwos < 60 && multipleOfPowerOf2(
                             m2, (uint32_t) requiredTwos));
-                  roundUp = trailingZeros ? 2 : 1;
+                    roundUp = trailingZeros ? 2 : 1;
                 }
+
                 if (maximum > 0)
                 {
-                    append_c_digits(maximum, digits, result + index);
-                    index += maximum;
+                    if (capacity_left(out) >= maximum) // write directly
+                    {
+                        append_c_digits(maximum, digits, out.data + out.length);
+                        out.length += maximum;
+                    }
+                    else // write only as much fits
+                    {
+                        char buf[10];
+                        append_c_digits(maximum, digits, buf);
+                        concat(&out, buf, maximum);
+                    }
                 }
                 break;
             }
         }
+        int index = out.length; // TODO <------------
 
         if (roundUp != 0)
         {
@@ -630,6 +648,8 @@ pf_d2fixed_buffered_n(
         pad(&out, '0', precision);
     }
 
+    if (capacity_left(out))
+        out.data[out.length] = '\0';
     return out.length;
 }
 

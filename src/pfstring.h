@@ -10,7 +10,7 @@ struct PFString
 
     char* data;
     size_t length;
-    size_t capacity;
+    const size_t capacity;
 };
 
 static inline size_t capacity_left(const struct PFString me)
