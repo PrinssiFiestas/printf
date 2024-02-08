@@ -4,6 +4,18 @@
 #include <inttypes.h>
 #include <math.h>
 
+#include "ryu.h"
+#include "common.h"
+#include "digit_table.h"
+#include "d2fixed_full_table.h"
+#include "d2s_intrinsics.h"
+
+#define DOUBLE_MANTISSA_BITS 52
+#define DOUBLE_EXPONENT_BITS 11
+#define DOUBLE_BIAS 1023
+
+#define POW10_ADDITIONAL_BITS 120
+
 static void str_reverse_copy(
     char* restrict out,
     char* restrict buf,
@@ -18,8 +30,18 @@ static void str_reverse_copy(
         out[length] = '\0';
 }
 
+static inline void
+append_n_digits(const uint32_t olength, uint32_t digits, char* const result);
+
 unsigned pf_utoa(const size_t n, char* out, uintmax_t x)
 {
+    if (n >= 10 && x < 1000000000) // use optimized
+    {
+        const uint32_t olength = decimalLength9(x);
+        append_n_digits(olength, x, out);
+        return olength;
+    }
+
     char buf[MAX_DIGITS];
     size_t i = 0;
     do // write all digits from low to high
@@ -171,18 +193,6 @@ unsigned pf_strfromd(
 // https://github.com/ulfjack/ryu
 //
 // ---------------------------------------------------------------------------
-
-#include "ryu.h"
-#include "common.h"
-#include "digit_table.h"
-#include "d2fixed_full_table.h"
-#include "d2s_intrinsics.h"
-
-#define DOUBLE_MANTISSA_BITS 52
-#define DOUBLE_EXPONENT_BITS 11
-#define DOUBLE_BIAS 1023
-
-#define POW10_ADDITIONAL_BITS 120
 
 // Convert `digits` to a sequence of decimal digits. Append the digits to the
 // result.
@@ -457,39 +467,45 @@ pf_d2fixed_buffered_n(
         m2 = (1ull << DOUBLE_MANTISSA_BITS) | ieeeMantissa;
     }
 
-    int index = 0; // TODO move this down as you change 'result' to 'out'.
     bool nonzero = false;
     if (ieeeSign)
-        result[index++] = '-';
+        push_char(&out, '-');
 
     if (e2 >= -52) // Write integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
         const uint32_t p10bits = pow10BitsForIndex(idx);
-        const int32_t len = (int32_t) lengthForIndex(idx);
+        const int32_t len = (int32_t)lengthForIndex(idx);
+
         for (int32_t i = len - 1; i >= 0; --i)
         {
             const uint32_t j = p10bits - e2;
-            // Temporary: j is usually around 128, and by shifting a bit, we
-            // push it to 128 or above, which is
-            // a slightly faster code path in mulShift_mod1e9. Instead, we can
-            // just increase the multipliers.
             const uint32_t digits = mulShift_mod1e9(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
+
             if (nonzero)
             { // Always subsequent iterations of loop
-                append_nine_digits(digits, result + index);
-                index += 9;
+                if (capacity_left(out) >= 9) // write directly
+                {
+                    append_nine_digits(digits, out.data + out.length);
+                    out.length += 9;
+                }
+                else // write only as much fits
+                {
+                    char buf[10];
+                    append_nine_digits(digits, buf);
+                    concat(&out, buf, 9);
+                }
             }
             else if (digits != 0)
             { // Always 1st iteration of loop
-                const uint32_t olength = decimalLength9(digits);
-                append_n_digits(olength, digits, result + index);
-                index += olength;
+                out.length += pf_utoa(
+                    capacity_left(out), out.data + out.length, digits);
                 nonzero = true;
             }
         }
     }
+    int index = out.length; // TODO <------------
 
     if ( ! nonzero)
         result[index++] = '0';
