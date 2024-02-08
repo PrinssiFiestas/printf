@@ -511,10 +511,10 @@ pf_d2fixed_buffered_n(
     if (precision > 0)
         push_char(&out, '.');
 
-    int index = out.length; // TODO <------------
-
     if (e2 < 0) // write fractional part
     {
+        int index = out.length; // TODO <------------
+
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
         // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
@@ -532,6 +532,7 @@ pf_d2fixed_buffered_n(
             memset(result + index, '0', 9 * i);
             index += 9 * i;
         }
+
         for (; i < blocks; ++i)
         {
             const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
@@ -587,6 +588,7 @@ pf_d2fixed_buffered_n(
                 break;
             }
         }
+
         if (roundUp != 0)
         {
             int roundIndex = index;
@@ -626,12 +628,13 @@ pf_d2fixed_buffered_n(
                 }
             }
         }
+        out.length = index; // TODO <-----------
     }
     else
     {
-        memset(result + index, '0', precision);
-        index += precision;
+        pad(&out, '0', precision);
     }
-    return index;
+
+    return out.length;
 }
 
