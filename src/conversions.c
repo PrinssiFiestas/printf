@@ -513,7 +513,6 @@ pf_d2fixed_buffered_n(
 
     if (e2 < 0) // write fractional part
     {
-        int index = out.length; // TODO <------------
 
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
@@ -523,15 +522,14 @@ pf_d2fixed_buffered_n(
         if (blocks <= MIN_BLOCK_2[idx])
         {
             i = blocks;
-            memset(result + index, '0', precision);
-            index += precision;
+            pad(&out, '0', precision);
         }
         else if (i < MIN_BLOCK_2[idx])
         {
             i = MIN_BLOCK_2[idx];
-            memset(result + index, '0', 9 * i);
-            index += 9 * i;
+            pad(&out, '0', 9 * i);
         }
+        int index = out.length; // TODO <------------
 
         for (; i < blocks; ++i)
         {
@@ -547,10 +545,7 @@ pf_d2fixed_buffered_n(
                 index += fill;
                 break;
             }
-            // Temporary: j is usually around 128, and by shifting a bit, we push it
-            // to 128 or above, which is
-            // a slightly faster code path in mulShift_mod1e9. Instead, we can just
-            // increase the multipliers.
+
             uint32_t digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
             if (i < blocks - 1)
             {
