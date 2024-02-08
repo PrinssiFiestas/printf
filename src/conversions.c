@@ -1,97 +1,104 @@
 #include "conversions.h"
 #include "format_scanning.h"
 #include "d2s_full_table.h"
+#include <inttypes.h>
 #include <math.h>
 
-static char* str_reverse(size_t len, char buf[GP_STATIC len])
+static void str_reverse_copy(
+    char* restrict out,
+    char* restrict buf,
+    const size_t length,
+    const size_t max)
 {
-    for (size_t i = 0; i < len/2; i++)
-    {
-        char temp = buf[i];
-        buf[i] = buf[len - i - 1];
-        buf[len - i - 1] = temp;
-    }
-    return buf;
+    const size_t maxlen = max < length ? max : length;
+    for (size_t i = 0; i < maxlen; i++)
+        out[i] = buf[length - 1 - i];
+
+    if (length < max)
+        out[length] = '\0';
 }
 
-unsigned pf_utoa(const size_t n, char* buf, uintmax_t x)
+unsigned pf_utoa(const size_t n, char* out, uintmax_t x)
 {
+    char buf[MAX_DIGITS];
     size_t i = 0;
     do // write all digits from low to high
     {
-        if (i < n)
-            buf[i++] = x % 10 + '0';
+        buf[i++] = x % 10 + '0';
         x /= 10;
     } while(x);
 
-    if (i < n)
-        buf[i] = '\0';
-    str_reverse(i < n ? i : n, buf);
+    str_reverse_copy(out, buf, i, n);
     return i;
 }
 
-unsigned pf_itoa(const size_t n, char* buf, intmax_t x)
+unsigned pf_itoa(size_t n, char* out, const intmax_t ix)
 {
-    if (x < 0)
-    {
-        if (n != 0)
-            buf[0] = '-';
-        return pf_utoa(n - 1, buf + 1, -x) + 1;
-    }
-    else return pf_utoa(n, buf, x);
-}
+    char buf[MAX_DIGITS];
 
-unsigned pf_otoa(const size_t n, char* buf, uintmax_t x)
-{
+    if (ix < 0)
+    {
+        if (n > 0)
+        {
+            out[0] = '-';
+            n--;
+        }
+        out++;
+    }
+
+    uintmax_t x = imaxabs(ix);
     size_t i = 0;
     do // write all digits from low to high
     {
-        if (i < n)
-            buf[i++] = x % 8 + '0';
+        buf[i++] = x % 10 + '0';
+        x /= 10;
+    } while(x);
+
+    str_reverse_copy(out, buf, i, n);
+    return i + (ix < 0);
+}
+
+unsigned pf_otoa(const size_t n, char* out, uintmax_t x)
+{
+    char buf[MAX_DIGITS];
+    size_t i = 0;
+    do // write all digits from low to high
+    {
+        buf[i++] = x % 8 + '0';
         x /= 8;
     } while(x);
 
-    if (i < n)
-        buf[i] = '\0';
-    str_reverse(i < n ? i : n, buf);
+    str_reverse_copy(out, buf, i, n);
     return i;
 }
 
-unsigned pf_xtoa(const size_t n, char* buf, uintmax_t x)
+unsigned pf_xtoa(const size_t n, char* out, uintmax_t x)
 {
+    char buf[MAX_DIGITS];
     size_t i = 0;
     do // write all digits from low to high
     {
-        if (i < n)
-        {
-            unsigned _x = x % 16;
-            buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'a';
-        }
+        unsigned _x = x % 16;
+        buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'a';
         x /= 16;
     } while(x);
 
-    if (i < n)
-        buf[i] = '\0';
-    str_reverse(i < n ? i : n, buf);
+    str_reverse_copy(out, buf, i, n);
     return i;
 }
 
-unsigned pf_Xtoa(const size_t n, char* buf, uintmax_t x)
+unsigned pf_Xtoa(const size_t n, char* out, uintmax_t x)
 {
+    char buf[MAX_DIGITS];
     size_t i = 0;
     do // write all digits from low to high
     {
-        if (i < n)
-        {
-            unsigned _x = x % 16;
-            buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'A';
-        }
+        unsigned _x = x % 16;
+        buf[i++] = _x < 10 ? _x + '0' : _x - 10 + 'A';
         x /= 16;
     } while(x);
 
-    if (i < n)
-        buf[i] = '\0';
-    str_reverse(i < n ? i : n, buf);
+    str_reverse_copy(out, buf, i, n);
     return i;
 }
 
@@ -450,12 +457,12 @@ pf_d2fixed_buffered_n(
         m2 = (1ull << DOUBLE_MANTISSA_BITS) | ieeeMantissa;
     }
 
-    int index = 0;
+    int index = 0; // TODO move this down as you change 'result' to 'out'.
     bool nonzero = false;
     if (ieeeSign)
         result[index++] = '-';
 
-    if (e2 >= -52)
+    if (e2 >= -52) // Write integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
         const uint32_t p10bits = pow10BitsForIndex(idx);
@@ -470,12 +477,12 @@ pf_d2fixed_buffered_n(
             const uint32_t digits = mulShift_mod1e9(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
             if (nonzero)
-            {
+            { // Always subsequent iterations of loop
                 append_nine_digits(digits, result + index);
                 index += 9;
             }
             else if (digits != 0)
-            {
+            { // Always 1st iteration of loop
                 const uint32_t olength = decimalLength9(digits);
                 append_n_digits(olength, digits, result + index);
                 index += olength;
@@ -484,7 +491,7 @@ pf_d2fixed_buffered_n(
         }
     }
 
-    if (!nonzero)
+    if ( ! nonzero)
         result[index++] = '0';
     if (precision > 0)
         result[index++] = '.';

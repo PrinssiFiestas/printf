@@ -47,12 +47,22 @@ int main(void)
             expect_str(buf, buf2);
             gp_expect(len == strlen(buf2));
         }
+
+        gp_test("Limit max characters");
+        {
+            strcpy(buf, "XXXXXX");
+            pf_utoa(3, buf, 123456);
+            expect_str(buf, "123XXX");
+
+            strcpy(buf, "XXXXXX");
+            pf_itoa(3, buf, -123456);
+            expect_str(buf, "-12XXX");
+        }
     } // gp_suite("Integer conversions");
 
     gp_suite("Float conversions");
     {
         char buf[2000] = "";
-        //char buf_std[sizeof(buf)] = "";
 
         double f = 0.;
         int return_value = 0;
@@ -63,6 +73,11 @@ int main(void)
             return_value = pf_ftoa(SIZE_MAX, buf, f);
             gp_expect(memcmp(buf, "3.140000", strlen("3.140000")) == 0, (buf));
             gp_expect(return_value == strlen("3.140000"), (return_value));
+
+            f = 210123456789.0;
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            gp_expect(memcmp(buf, "210123456789.000000", strlen("210123456789.000000")) == 0, (buf));
+            gp_expect(return_value == strlen("210123456789.000000"), (return_value));
         }
     }
 }
