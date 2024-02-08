@@ -471,7 +471,7 @@ pf_d2fixed_buffered_n(
     if (ieeeSign)
         push_char(&out, '-');
 
-    if (e2 >= -52) // Write integer part
+    if (e2 >= -52) // write integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
         const uint32_t p10bits = pow10BitsForIndex(idx);
@@ -484,7 +484,7 @@ pf_d2fixed_buffered_n(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
 
             if (nonzero)
-            { // Always subsequent iterations of loop
+            { // always subsequent iterations of loop
                 if (capacity_left(out) >= 9) // write directly
                 {
                     append_nine_digits(digits, out.data + out.length);
@@ -498,21 +498,22 @@ pf_d2fixed_buffered_n(
                 }
             }
             else if (digits != 0)
-            { // Always 1st iteration of loop
+            { // always 1st iteration of loop
                 out.length += pf_utoa(
                     capacity_left(out), out.data + out.length, digits);
                 nonzero = true;
             }
         }
     }
-    int index = out.length; // TODO <------------
 
     if ( ! nonzero)
-        result[index++] = '0';
+        push_char(&out, '0');
     if (precision > 0)
-        result[index++] = '.';
+        push_char(&out, '.');
 
-    if (e2 < 0)
+    int index = out.length; // TODO <------------
+
+    if (e2 < 0) // write fractional part
     {
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;

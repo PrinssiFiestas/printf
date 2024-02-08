@@ -78,6 +78,12 @@ int main(void)
             return_value = pf_ftoa(SIZE_MAX, buf, f);
             gp_expect(memcmp(buf, "210123456789.000000", strlen("210123456789.000000")) == 0, (buf));
             gp_expect(return_value == strlen("210123456789.000000"), (return_value));
+
+            f = 0.123;
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            gp_expect(memcmp(buf, "0.123000", strlen("0.123000")) == 0, (buf));
+            gp_expect(return_value == strlen("0.123000"), (return_value));
+
         }
     }
 }
