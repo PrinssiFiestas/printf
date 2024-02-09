@@ -88,6 +88,19 @@ int main(void)
             return_value = pf_ftoa(SIZE_MAX, buf, f);
             gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
             gp_expect(return_value == strlen("0.012346"), (return_value));
+
+            f = -13999.; // Note how 5 rounds up to 6
+            return_value = pf_ftoa(8, buf, f);
+            //gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
+            //gp_expect(return_value == strlen("0.012346"), (return_value));
+
+            // Test rounding from truncated string
+            #if TODO
+            f = 0.123456;
+            return_value = pf_ftoa(5, buf, f);
+            gp_expect(memcmp(buf, "0.12346", strlen("0.12346")) == 0, (buf));
+            gp_expect(return_value == strlen("0.12346"), (return_value));
+            #endif
         }
     }
 }
