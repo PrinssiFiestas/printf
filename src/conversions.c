@@ -471,11 +471,6 @@ pf_d2fixed_buffered_n(
     if (ieeeSign)
         push_char(&out, '-');
 
-    // Must keep track of trailing nines in case of having to round up past the
-    // buffer length e.g. 0.00999 when out.capacity == 4
-    int nines_start = ieeeSign - 1;
-    bool last_was_9_too = true; // have to lie to make it work
-
     if (e2 >= -52) // write integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
@@ -495,8 +490,8 @@ pf_d2fixed_buffered_n(
                     append_nine_digits(digits, out.data + out.length);
                     out.length += 9;
                 }
-                else // write only as much as fits and keep track of 9s in case
-                {    // of rounding over out.data[out.capacity] // TODO
+                else // write only as much as fits
+                {
                     char buf[10];
                     append_nine_digits(digits, buf);
                     concat(&out, buf, 9);
@@ -509,30 +504,11 @@ pf_d2fixed_buffered_n(
                     out.length += pf_utoa(
                         capacity_left(out), out.data + out.length, digits);
                 }
-                else // write only as much as fits and keep track of 9s in case
-                {    // of rounding over out.data[out.capacity]
-                    char buf[10] = "";
-
-                    size_t i = 0;
-                    uint32_t _digits = digits;
-                    do // write all digits from low to high in reverse order
-                    {
-                        if (_digits % 10 == 9 && last_was_9_too)
-                        {
-                            nines_start++;
-                            last_was_9_too = true;
-                        }
-                        else
-                            last_was_9_too = false;
-
-                        buf[i++] = _digits % 10 + '0';
-                        _digits /= 10;
-                    } while(_digits);
-
-                    str_reverse_copy(
-                        out.data + out.length, buf, i, capacity_left(out));
-                    out.length += i;
-                    //concat(&out, buf, strlen(buf)); // TODO REMOVE THIS
+                else // write only as much as fits
+                {
+                    char buf[10];
+                    unsigned buf_len = pf_utoa(sizeof(buf), buf, digits);
+                    concat(&out, buf, buf_len);
                 }
                 nonzero = true;
             }
@@ -585,8 +561,8 @@ pf_d2fixed_buffered_n(
                     append_nine_digits(digits, out.data + out.length);
                     out.length += 9;
                 }
-                else // write only as much as fits and keep track of 9s in case
-                {    // of rounding over out.data[out.capacity] // TODO
+                else // write only as much as fits
+                {
                     char buf[10];
                     append_nine_digits(digits, buf);
                     concat(&out, buf, 9);
@@ -627,8 +603,8 @@ pf_d2fixed_buffered_n(
                         append_c_digits(maximum, digits, out.data + out.length);
                         out.length += maximum;
                     }
-                    else // write only as much as fits and keep track of 9s in
-                    {    // case of rounding over out.data[out.capacity] // TODO
+                    else // write only as much as fits
+                    {
                         char buf[10];
                         append_c_digits(maximum, digits, buf);
                         concat(&out, buf, maximum);
@@ -643,8 +619,6 @@ pf_d2fixed_buffered_n(
         // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
         if (roundUp != 0)
         {
-            (void)nines_start; // TODO
-
             int roundIndex = index; // Always <= index
             int dotIndex = 0; // '.' can't be located at index 0
             while (true)
