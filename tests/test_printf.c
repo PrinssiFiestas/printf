@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define FUZZ_TEST_LOOP_COUNT 65536
-
+#include <math.h>
 int main(void)
 {
     char buf[512] = "";

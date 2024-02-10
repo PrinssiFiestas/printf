@@ -6,6 +6,13 @@
 #include <math.h>
 #include <ctype.h>
 
+struct MiscData
+{
+    bool has_sign;
+    bool has_0x;
+    bool is_nan_or_inf;
+};
+
 static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
 {
     if (fmt.conversion_format == 'p')
@@ -101,6 +108,7 @@ static void write_leading_zeroes(
 
 static unsigned write_i(
     struct PFString out[static 1],
+    struct MiscData md[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
@@ -139,7 +147,10 @@ static unsigned write_i(
 
     const char sign = i < 0 ? '-' : fmt.flag.plus ? '+' : fmt.flag.space ? ' ' : 0;
     if (sign)
+    {
         push_char(out, sign);
+        md->has_sign = true;
+    }
 
     const unsigned max_written = pf_utoa(
         capacity_left(*out), out->data + out->length, imaxabs(i));
@@ -176,14 +187,18 @@ static unsigned write_o(
 
 static unsigned write_x(
     struct PFString out[static 1],
+    struct MiscData md[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
 
-    const char* _0x = fmt.flag.hash && u > 0 ? "0x" : "";
-    concat(out, _0x, strlen(_0x));
+    if (fmt.flag.hash && u > 0)
+    {
+        concat(out, "0x", strlen("0x"));
+        md->has_0x = true;
+    }
 
     const unsigned max_written = pf_xtoa(
         capacity_left(*out), out->data + out->length, u);
@@ -194,14 +209,18 @@ static unsigned write_x(
 
 static unsigned write_X(
     struct PFString out[static 1],
+    struct MiscData md[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
     const uintmax_t u = get_uint(args, fmt);
 
-    const char* _0x = fmt.flag.hash && u > 0 ? "0X" : "";
-    concat(out, _0x, strlen(_0x));
+    if (fmt.flag.hash && u > 0)
+    {
+        concat(out, "0X", strlen("0X"));
+        md->has_0x = true;
+    }
 
     const unsigned max_written = pf_Xtoa(
         capacity_left(*out), out->data + out->length, u);
@@ -254,6 +273,7 @@ progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
 
 static unsigned write_f(
     struct PFString out[static 1],
+    struct MiscData md[static 1],
     va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
@@ -284,12 +304,19 @@ static unsigned write_f(
     else
         f = va_arg(*args, double);
 
-//const bool is_positive = (is_long && !signbit(lf)) || (!is_long && !signbit(f));
     const bool is_positive = !signbit(lf) && !signbit(f);
     if (is_positive && fmt.flag.plus)
+    {
         push_char(out, '+');
+        md->has_sign = true;
+    }
     else if (is_positive && fmt.flag.space)
+    {
         push_char(out, ' ');
+        md->has_sign = true;
+    }
+    else if ( ! is_positive)
+        md->has_sign = true;
 
     if (is_long)
         out->length += strfroml(
@@ -298,8 +325,12 @@ static unsigned write_f(
         out->length += strfromd(
             out->data + out->length, capacity_left(*out), simplified_fmt, f);
 
-    const bool is_nan_or_inf = isnan(lf) || isnan(f) || isinf(lf) || isinf(f);
-    if (fmt.flag.hash && ! is_nan_or_inf)
+    md->is_nan_or_inf = isnan(lf) || isnan(f) || isinf(lf) || isinf(f);
+    if ((fmt.conversion_format == 'a' || fmt.conversion_format == 'A') &&
+        ! md->is_nan_or_inf)
+        md->has_0x = true;
+
+    if (fmt.flag.hash && ! md->is_nan_or_inf)
     {
         // Better not to use math functions due to floating point errors. All we
         // care about is did strfromd() write a decimal point or not.
@@ -396,7 +427,7 @@ static unsigned write_f(
         out->length += written - TEMP_written_original;
         return written;
     }
-    //out->length += written - TEMP_written_original;
+    //out->length += written - TEMP_written_original; // TODO REMOVE
     //return written;
 
     // NEW
@@ -406,23 +437,15 @@ static unsigned write_f(
 static unsigned add_padding(
     char* out_buf,
     const unsigned written,
+    const struct MiscData md,
     const PFFormatSpecifier fmt)
 {
     char* const start = out_buf - written;
     const unsigned diff = fmt.field.width - written;
-    const bool has_sign =
-        start[0] == '-' ||
-        start[0] == '+' ||
-        start[0] == ' '; // space flag: ' ' <=> '+'
 
-    const bool ignore_zero =
-    (
-        strchr("diouxX", fmt.conversion_format) != NULL &&
-        fmt.precision.option != PF_NONE
-    ) || (
-        start[has_sign] == 'n' || start[has_sign] == 'N' || // "nan"
-        start[has_sign] == 'i' || start[has_sign] == 'I'    // "inf"
-    );
+    const bool is_int_with_precision =
+        strchr("diouxX", fmt.conversion_format) && fmt.precision.option != PF_NONE;
+    const bool ignore_zero = is_int_with_precision || md.is_nan_or_inf;
 
     if (fmt.flag.dash) // left justified, append padding
     {
@@ -431,10 +454,7 @@ static unsigned add_padding(
     }
     else if (fmt.flag.zero && ! ignore_zero) // fill in zeroes
     { // 0-padding minding "0x" or sign prefix
-        const bool has_0x =
-            start[1 + has_sign] == 'x' ||
-            start[1 + has_sign] == 'X';
-        const unsigned offset = has_sign + 2 * has_0x;
+        const unsigned offset = md.has_sign + 2 * md.has_0x;
 
         // Make foom for zeroes
         memmove(
@@ -493,6 +513,7 @@ int pf_vsnprintf(
         concat(&out, format, fmt.string - format);
 
         unsigned written_by_conversion = 0;
+        struct MiscData misc = {};
 
         switch (fmt.conversion_format)
         {
@@ -509,7 +530,7 @@ int pf_vsnprintf(
             case 'd':
             case 'i':
                 written_by_conversion += write_i(
-                    &out, &args, fmt);
+                    &out, &misc, &args, fmt);
                 break;
 
             case 'o':
@@ -519,12 +540,12 @@ int pf_vsnprintf(
 
             case 'x':
                 written_by_conversion += write_x(
-                    &out, &args, fmt);
+                    &out, &misc, &args, fmt);
                 break;
 
             case 'X':
                 written_by_conversion += write_X(
-                    &out, &args, fmt);
+                    &out, &misc, &args, fmt);
                 break;
 
             case 'u':
@@ -542,7 +563,7 @@ int pf_vsnprintf(
             case 'a': case 'A':
             case 'g': case 'G':
                 written_by_conversion += write_f(
-                    &out, &args, fmt);
+                    &out, &misc, &args, fmt);
                 break;
 
             case '%':
@@ -552,7 +573,11 @@ int pf_vsnprintf(
 
         if (written_by_conversion < fmt.field.width)
             out.length += add_padding(
-                out.data + out.length, written_by_conversion, fmt);
+                out.data + out.length,
+                written_by_conversion,
+                misc,
+                fmt);
+                //out.data + out.length, written_by_conversion, fmt); // TODO R
 
         // Jump over format specifier
         format = fmt.string + fmt.string_length;
