@@ -6,6 +6,9 @@
 #include <math.h>
 #include <ctype.h>
 
+// All write_*() family of functions returns what would be written without
+// limit, not what is actually written, just like snprintf(NULL, 0, ...).
+
 struct MiscData
 {
     bool has_sign;
@@ -435,12 +438,12 @@ static unsigned write_f(
 }
 
 static unsigned add_padding(
-    char* out_buf,
+    struct PFString out[static 1],
     const unsigned written,
     const struct MiscData md,
     const PFFormatSpecifier fmt)
 {
-    char* const start = out_buf - written;
+    size_t start = out->length - written;
     const unsigned diff = fmt.field.width - written;
 
     const bool is_int_with_precision =
@@ -449,34 +452,16 @@ static unsigned add_padding(
 
     if (fmt.flag.dash) // left justified, append padding
     {
-        for (size_t i = 0; i < diff; i++)
-            out_buf[i] = ' ';
+        pad(out, ' ', diff);
     }
     else if (fmt.flag.zero && ! ignore_zero) // fill in zeroes
     { // 0-padding minding "0x" or sign prefix
         const unsigned offset = md.has_sign + 2 * md.has_0x;
-
-        // Make foom for zeroes
-        memmove(
-        // printf("%#07x", 0x89)
-        //
-        // 0x89___
-        //      x    <- dest == start + diff + offset
-        //   x       <- src  == start + offset
-        //   89      <- offset == strlen("0x") == 2 so these go
-        //      89   <- here
-            start + diff + offset,
-            start + offset,
-            written - offset);
-
-        for (size_t i = 0; i < diff; i++)
-            (start + offset)[i] = '0';
+        insert_pad(out, start + offset, '0', diff);
     }
     else // fill in spaces
     {
-        memmove(start + diff, start, written);
-        for (size_t i = 0; i < diff; i++)
-            start[i] = ' ';
+        insert_pad(out, start, ' ', diff);
     }
 
     return diff;
@@ -572,12 +557,11 @@ int pf_vsnprintf(
         }
 
         if (written_by_conversion < fmt.field.width)
-            out.length += add_padding(
-                out.data + out.length,
+            add_padding(
+                &out,
                 written_by_conversion,
                 misc,
                 fmt);
-                //out.data + out.length, written_by_conversion, fmt); // TODO R
 
         // Jump over format specifier
         format = fmt.string + fmt.string_length;

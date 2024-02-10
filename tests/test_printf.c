@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define FUZZ_TEST_LOOP_COUNT 65536
-#include <math.h>
+
 int main(void)
 {
     char buf[512] = "";
@@ -382,6 +382,24 @@ int main(void)
                     (buf_std_return_value),
                     (iteration));
             }
+        }
+    }
+
+    // -------- INTERNAL ----------------- //
+
+    gp_suite("GPString");
+    {
+        gp_test("insert_pad");
+        {
+            struct PFString str =
+            {
+                .data = (char[64]){"SomeData"},
+                .length   = strlen("SomeData"),
+                .capacity = strlen("SomeData"),
+            };
+            unsigned ret_val = insert_pad(&str, 4, 'X', 3);
+            expect_str(str.data, "SomeXXXD");
+            gp_expect(ret_val == 0, (ret_val));
         }
     }
 }
