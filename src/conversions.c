@@ -551,7 +551,7 @@ pf_d2fixed_buffered_n(
         }
     }
 
-    if ( ! is_zero)
+    if ( ! is_zero) // TODO MOVE THIS DOWN WHEN ROUNDING
     {
         if (capacity_left(out) >= 9) // write directly
         {
@@ -588,6 +588,7 @@ pf_d2fixed_buffered_n(
     if (precision > 0)
         push_char(&out, '.');
 
+#if OLD
     if (e2 < 0) // write fractional part
     {
 
@@ -598,7 +599,7 @@ pf_d2fixed_buffered_n(
         uint32_t i = 0;
         if (blocks <= MIN_BLOCK_2[idx])
         {
-            i = blocks;
+            i = blocks; // skip the for-loop below
             pad(&out, '0', precision);
         }
         else if (i < MIN_BLOCK_2[idx])
@@ -607,7 +608,7 @@ pf_d2fixed_buffered_n(
             pad(&out, '0', 9 * i);
         }
 
-        for (; i < blocks; ++i) // write fractional digits
+        for (; i < blocks; ++i) // write significant fractional digits
         {
             const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
             const uint32_t p = POW10_OFFSET_2[idx] + i - MIN_BLOCK_2[idx];
@@ -730,11 +731,163 @@ pf_d2fixed_buffered_n(
         }
         out.length = index; // TODO <-----------
     }
+#else // NEW ------------------------ //
+
+    // TEMP at the moment integer part is written but later on they all get
+    // written once.
+    memset(all_digits, 0, sizeof(all_digits));
+    digits_length = 0;
+
+    if (e2 < 0) // write fractional part
+    {
+        const int32_t idx = -e2 / 16;
+        const uint32_t blocks = precision / 9 + 1;
+        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
+        int roundUp = 0;
+        uint32_t i = 0;
+        if (blocks <= MIN_BLOCK_2[idx]) // write only zeroes
+        {
+            i = blocks; // skip the for-loop below
+            pad(&out, '0', precision);
+        }
+        else if (i < MIN_BLOCK_2[idx])
+        {
+            i = MIN_BLOCK_2[idx];
+            pad(&out, '0', 9 * i);
+        }
+
+        uint32_t digits;
+        for (; i < blocks; ++i) // store significant fractional digits
+        {
+            const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
+            const uint32_t p = POW10_OFFSET_2[idx] + i - MIN_BLOCK_2[idx];
+
+            if (p >= POW10_OFFSET_2[idx + 1])
+            {
+                // If the remaining digits are all 0, then we might as well use
+                // pad(). No rounding required in this case.
+                const uint32_t fill = precision - 9 * i;
+                pad(&out, '0', fill);
+
+                break;
+            }
+
+            digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
+            all_digits[digits_length++] = digits;
+        }
+
+        if (i == blocks)
+        {
+            const uint32_t maximum = precision - 9 * (i-1);
+            uint32_t lastDigit = 0;
+
+            // Note the loop condition. digits might contain more digits
+            // than 1 after loop.
+            for (uint32_t k = 0; k < 9 - maximum; ++k)
+            {
+                lastDigit = digits % 10;
+                digits /= 10;
+            }
+
+            // Determine if should round up
+            if (lastDigit != 5)
+            {
+                roundUp = lastDigit > 5;
+            }
+            else
+            {
+                // Is m * 10^(additionalDigits + 1) / 2^(-e2) integer?
+                const int32_t requiredTwos = -e2 - (int32_t) precision - 1;
+                const bool trailingZeros = requiredTwos <= 0 ||
+                    (requiredTwos < 60 && multipleOfPowerOf2(
+                        m2, (uint32_t) requiredTwos));
+                roundUp = trailingZeros ? 2 : 1;
+            }
+
+            for (size_t k = 0; k < digits_length - 1; k++)
+            {
+                if (capacity_left(out) >= 9) // write directly
+                {
+                    append_nine_digits(all_digits[k], out.data + out.length);
+                    out.length += 9;
+                }
+                else // write only as much as fits
+                {
+                    char buf[10];
+                    append_nine_digits(all_digits[k], buf);
+                    concat(&out, buf, 9);
+                }
+            }
+
+            if (maximum > 0) // write the last digits left
+            {
+                if (capacity_left(out) >= maximum) // write directly
+                {
+                    append_c_digits(maximum, digits, out.data + out.length);
+                    out.length += maximum;
+                }
+                else // write only as much as fits
+                {
+                    char buf[10];
+                    append_c_digits(maximum, digits, buf);
+                    concat(&out, buf, maximum);
+                }
+            }
+        }
+        int index = out.length; // TODO <------------
+
+        // Reminder:
+        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
+        if (roundUp != 0)
+        {
+            int roundIndex = index; // Always <= index
+            int dotIndex = 0; // '.' can't be located at index 0
+            while (true)
+            { // round all 9 to 0 from left and the leftmost += 1
+                --roundIndex;
+                char c;
+
+                // Check if roundIndex went all the way left and round up to 1.0
+                if (roundIndex == -1 || (c = result[roundIndex], c == '-'))
+                {
+                    result[roundIndex + 1] = '1';
+                    if (dotIndex > 0)
+                    {
+                        result[dotIndex] = '0';
+                        result[dotIndex + 1] = '.';
+                    }
+                    //result[index++] = '0'; // extra cap only needed here
+                    push_char(&out, '0');
+                    break;
+                }
+
+                if (c == '.')
+                {
+                    dotIndex = roundIndex;
+                    continue;
+                }
+                else if (c == '9')
+                {
+                    result[roundIndex] = '0';
+                    roundUp = 1;
+                    continue;
+                }
+                else
+                {
+                    if (roundUp == 2 && c % 2 == 0)
+                        break;
+                    result[roundIndex] = c + 1;
+                    break;
+                }
+            }
+        }
+        out.length = index; // TODO <-----------
+    }
+#endif
     else
     {
         pad(&out, '0', precision);
     }
-
 
     if (capacity_left(out))
         out.data[out.length] = '\0';
