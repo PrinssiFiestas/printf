@@ -442,6 +442,7 @@ pf_d2fixed_buffered_n(
             fmt.conversion_format == 'F' || fmt.conversion_format == 'G';
         return pf_copy_special_str_printf(&out, ieeeSign, ieeeMantissa, uppercase);
     }
+
     if (ieeeExponent == 0 && ieeeMantissa == 0) // d == 0.0
     {
         if (ieeeSign)
@@ -471,6 +472,7 @@ pf_d2fixed_buffered_n(
     if (ieeeSign)
         push_char(&out, '-');
 
+#if OLD
     if (e2 >= -52) // write integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
@@ -514,6 +516,72 @@ pf_d2fixed_buffered_n(
             }
         }
     }
+
+#else // END OF OLD ----------------------------- //
+
+    // Longest string of significant digits that I have found had 1076 digits.
+    // A uint32_t can fit 9 decimal digits without losing precision which means
+    // that we need an array with size 1076/9 ≈ 120. Let's double that for good
+    // measure and round up a power of two.
+    uint32_t all_digits[256] = {};
+    size_t digits_length = 0;
+    //size_t integer_part_end = 0; // place for decimal point
+
+    if (e2 >= -52) // write integer part
+    {
+        const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
+        const uint32_t p10bits = pow10BitsForIndex(idx);
+        const int32_t len = (int32_t)lengthForIndex(idx);
+
+        for (int32_t i = len - 1; i >= 0; --i)
+        {
+            const uint32_t j = p10bits - e2;
+            const uint32_t digits = mulShift_mod1e9(
+                m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
+
+            if (nonzero)
+            { // always subsequent iterations of loop
+                all_digits[digits_length++] = digits;
+            }
+            else if (digits != 0)
+            { // always 1st iteration of loop
+                all_digits[digits_length++] = digits;
+                nonzero = true;
+            }
+        }
+    }
+
+    if (nonzero)
+    {
+        if (capacity_left(out) >= 9) // write directly
+        {
+            out.length += pf_utoa(
+                capacity_left(out), out.data + out.length, all_digits[0]);
+        }
+        else // write only as much as fits
+        {
+            char buf[10];
+            unsigned buf_len = pf_utoa(sizeof(buf), buf, all_digits[0]);
+            concat(&out, buf, buf_len);
+        }
+
+        for (size_t i = 1; i < digits_length; i++)
+        {
+            if (capacity_left(out) >= 9) // write directly
+            {
+                append_nine_digits(all_digits[i], out.data + out.length);
+                out.length += 9;
+            }
+            else // write only as much as fits
+            {
+                char buf[10];
+                append_nine_digits(all_digits[i], buf);
+                concat(&out, buf, 9);
+            }
+        }
+    }
+
+#endif
 
     if ( ! nonzero)
         push_char(&out, '0');
@@ -666,6 +734,7 @@ pf_d2fixed_buffered_n(
     {
         pad(&out, '0', precision);
     }
+
 
     if (capacity_left(out))
         out.data[out.length] = '\0';
