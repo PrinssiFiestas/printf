@@ -468,7 +468,7 @@ pf_d2fixed_buffered_n(
         m2 = (1ull << DOUBLE_MANTISSA_BITS) | ieeeMantissa;
     }
 
-    bool nonzero = false;
+    bool is_zero = true;
     if (ieeeSign)
         push_char(&out, '-');
 
@@ -485,7 +485,7 @@ pf_d2fixed_buffered_n(
             const uint32_t digits = mulShift_mod1e9(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
 
-            if (nonzero)
+            if ( ! is_zero)
             { // always subsequent iterations of loop
                 if (capacity_left(out) >= 9) // write directly
                 {
@@ -512,7 +512,7 @@ pf_d2fixed_buffered_n(
                     unsigned buf_len = pf_utoa(sizeof(buf), buf, digits);
                     concat(&out, buf, buf_len);
                 }
-                nonzero = true;
+                is_zero = false;
             }
         }
     }
@@ -539,19 +539,19 @@ pf_d2fixed_buffered_n(
             const uint32_t digits = mulShift_mod1e9(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
 
-            if (nonzero)
+            if ( ! is_zero)
             { // always subsequent iterations of loop
                 all_digits[digits_length++] = digits;
             }
             else if (digits != 0)
             { // always 1st iteration of loop
                 all_digits[digits_length++] = digits;
-                nonzero = true;
+                is_zero = false;
             }
         }
     }
 
-    if (nonzero)
+    if ( ! is_zero)
     {
         if (capacity_left(out) >= 9) // write directly
         {
@@ -583,7 +583,7 @@ pf_d2fixed_buffered_n(
 
 #endif
 
-    if ( ! nonzero)
+    if (is_zero)
         push_char(&out, '0');
     if (precision > 0)
         push_char(&out, '.');
