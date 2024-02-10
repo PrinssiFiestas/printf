@@ -292,43 +292,25 @@ static unsigned write_f(
         ffmt,
         fmt.string + fmt.string_length - ffmt);
 
-    // Long double has poor support across systems. I recall MinGW GCC being
-    // happy to compile a program with long doubles just for them not to work
-    // at all at runtime. I can't remember how it failed though so test some
-    // day that using a long double with 0.L doesn't cause problems.
-    long double lf = 0.L;
-    double f = 0.;
-    const bool is_long =
-        fmt.length_modifier == 'L' ||
-        fmt.length_modifier == 'l' ||
-        fmt.length_modifier == 'l' * 2;
-    if (is_long)
-        lf = va_arg(*args, long double);
-    else
-        f = va_arg(*args, double);
+    double f = va_arg(*args, double);
 
-    const bool is_positive = !signbit(lf) && !signbit(f);
-    if (is_positive && fmt.flag.plus)
+    if (!signbit(f) && fmt.flag.plus)
     {
         push_char(out, '+');
         md->has_sign = true;
     }
-    else if (is_positive && fmt.flag.space)
+    else if (!signbit(f) && fmt.flag.space)
     {
         push_char(out, ' ');
         md->has_sign = true;
     }
-    else if ( ! is_positive)
+    else if (signbit(f))
         md->has_sign = true;
 
-    if (is_long)
-        out->length += strfroml(
-            out->data + out->length, capacity_left(*out), simplified_fmt, lf);
-    else
-        out->length += strfromd(
-            out->data + out->length, capacity_left(*out), simplified_fmt, f);
+    out->length += strfromd(
+        out->data + out->length, capacity_left(*out), simplified_fmt, f);
 
-    md->is_nan_or_inf = isnan(lf) || isnan(f) || isinf(lf) || isinf(f);
+    md->is_nan_or_inf = isnan(f) || isinf(f);
     if ((fmt.conversion_format == 'a' || fmt.conversion_format == 'A') &&
         ! md->is_nan_or_inf)
         md->has_0x = true;
@@ -547,6 +529,27 @@ int pf_vsnprintf(
             case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
+                if (sizeof(long double) != sizeof(double) && (
+                    fmt.length_modifier == 'L' ||
+                    fmt.length_modifier == 'l' ||
+                    fmt.length_modifier == 'l' * 2))
+                    // TODO add switch to disable long double which would get
+                    // rid of snprintf() below reducing code size.
+                {
+                    char fmt_buf[32];
+                    memcpy( // to allow null-termination
+                        fmt_buf,
+                        fmt.string,
+                        min(fmt.string_length, sizeof(fmt_buf)-1));
+                    fmt_buf[sizeof(fmt_buf) - 1] = '\0';
+
+                    // Only hope to get any portability.
+                    out.length += snprintf(
+                        out.data + out.length, max_size,
+                        fmt_buf, va_arg(args, long double));
+                    format = fmt.string + fmt.string_length;
+                    continue;
+                }
                 written_by_conversion += write_f(
                     &out, &misc, &args, fmt);
                 break;
