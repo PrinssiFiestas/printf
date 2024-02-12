@@ -610,14 +610,17 @@ pf_d2fixed_buffered_n(
         else
             round_up = false;
 
-        for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
+        if (round_up)
         {
-            all_digits[i] += 1;
-            if (all_digits[i] == (uint32_t)1000*1000*1000) {
-                all_digits[i] = 0; // carry 1
-            } else {
-                round_up = false;
-                break;
+            for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
+            {
+                all_digits[i] += 1;
+                if (all_digits[i] == (uint32_t)1000*1000*1000) {
+                    all_digits[i] = 0; // carry 1
+                } else {
+                    round_up = false;
+                    break;
+                }
             }
         }
 
