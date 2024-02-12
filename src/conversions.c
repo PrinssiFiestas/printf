@@ -644,7 +644,7 @@ pf_d2fixed_buffered_n(
 
     // Start writing digits for fractional part
 
-    if (digits_length != integer_part_end)
+    if (digits_length != integer_part_end && precision > 0)
     {
         push_char(&out, '.');
         pad(&out, '0', fract_leading_zeroes);
