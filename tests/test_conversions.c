@@ -89,11 +89,16 @@ int main(void)
             gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
             gp_expect(return_value == strlen("0.012346"), (return_value));
 
+            f = -13999.99999999999;
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            gp_expect(memcmp(buf, "-14000.000000", strlen("-14000.000000")) == 0, (buf));
+            gp_expect(return_value == strlen("-14000.000000"), (return_value));
+
             #if TODO
             f = -13999.99999999999;
             return_value = pf_ftoa(8, buf, f);
-            gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
-            gp_expect(return_value == strlen("0.012346"), (return_value));
+            gp_expect(memcmp(buf, "-14000.0", strlen("-14000.0")) == 0, (buf));
+            gp_expect(return_value == strlen("-14000.0"), (return_value));
             #endif
 
             // Test rounding from truncated string

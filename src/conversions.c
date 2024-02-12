@@ -468,56 +468,9 @@ pf_d2fixed_buffered_n(
         m2 = (1ull << DOUBLE_MANTISSA_BITS) | ieeeMantissa;
     }
 
-    bool is_zero = true;
+    bool is_zero = true; // for now
     if (ieeeSign)
         push_char(&out, '-');
-
-#if OLD
-    if (e2 >= -52) // write integer part
-    {
-        const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
-        const uint32_t p10bits = pow10BitsForIndex(idx);
-        const int32_t len = (int32_t)lengthForIndex(idx);
-
-        for (int32_t i = len - 1; i >= 0; --i)
-        {
-            const uint32_t j = p10bits - e2;
-            const uint32_t digits = mulShift_mod1e9(
-                m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
-
-            if ( ! is_zero)
-            { // always subsequent iterations of loop
-                if (capacity_left(out) >= 9) // write directly
-                {
-                    append_nine_digits(digits, out.data + out.length);
-                    out.length += 9;
-                }
-                else // write only as much as fits
-                {
-                    char buf[10];
-                    append_nine_digits(digits, buf);
-                    concat(&out, buf, 9);
-                }
-            }
-            else if (digits != 0)
-            { // always 1st iteration of loop
-                if (capacity_left(out) >= 9) // write directly
-                {
-                    out.length += pf_utoa(
-                        capacity_left(out), out.data + out.length, digits);
-                }
-                else // write only as much as fits
-                {
-                    char buf[10];
-                    unsigned buf_len = pf_utoa(sizeof(buf), buf, digits);
-                    concat(&out, buf, buf_len);
-                }
-                is_zero = false;
-            }
-        }
-    }
-
-#else // END OF OLD ----------------------------- //
 
     // Longest string of significant digits that I have found had 1076 digits.
     // A uint32_t can fit 9 decimal digits without losing precision which means
@@ -525,9 +478,9 @@ pf_d2fixed_buffered_n(
     // measure and round up a power of two.
     uint32_t all_digits[256] = {};
     size_t digits_length = 0;
-    //size_t integer_part_end = 0; // place for decimal point
+    size_t integer_part_end = 0; // place for decimal point
 
-    if (e2 >= -52) // write integer part
+    if (e2 >= -52) // store integer part
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
         const uint32_t p10bits = pow10BitsForIndex(idx);
@@ -549,211 +502,36 @@ pf_d2fixed_buffered_n(
                 is_zero = false;
             }
         }
+        integer_part_end = digits_length;
     }
-
-    if ( ! is_zero) // TODO MOVE THIS DOWN WHEN ROUNDING
-    {
-        if (capacity_left(out) >= 9) // write directly
-        {
-            out.length += pf_utoa(
-                capacity_left(out), out.data + out.length, all_digits[0]);
-        }
-        else // write only as much as fits
-        {
-            char buf[10];
-            unsigned buf_len = pf_utoa(sizeof(buf), buf, all_digits[0]);
-            concat(&out, buf, buf_len);
-        }
-
-        for (size_t i = 1; i < digits_length; i++)
-        {
-            if (capacity_left(out) >= 9) // write directly
-            {
-                append_nine_digits(all_digits[i], out.data + out.length);
-                out.length += 9;
-            }
-            else // write only as much as fits
-            {
-                char buf[10];
-                append_nine_digits(all_digits[i], buf);
-                concat(&out, buf, 9);
-            }
-        }
-    }
-
-#endif
 
     if (is_zero)
-        push_char(&out, '0');
-    if (precision > 0)
-        push_char(&out, '.');
-
-#if OLD
-    if (e2 < 0) // write fractional part
     {
-
-        const int32_t idx = -e2 / 16;
-        const uint32_t blocks = precision / 9 + 1;
-        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-        int roundUp = 0;
-        uint32_t i = 0;
-        if (blocks <= MIN_BLOCK_2[idx])
-        {
-            i = blocks; // skip the for-loop below
-            pad(&out, '0', precision);
-        }
-        else if (i < MIN_BLOCK_2[idx])
-        {
-            i = MIN_BLOCK_2[idx];
-            pad(&out, '0', 9 * i);
-        }
-
-        for (; i < blocks; ++i) // write significant fractional digits
-        {
-            const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
-            const uint32_t p = POW10_OFFSET_2[idx] + i - MIN_BLOCK_2[idx];
-            if (p >= POW10_OFFSET_2[idx + 1])
-            {
-                // If the remaining digits are all 0, then we might as well use
-                // pad().
-                // No rounding required in this case.
-                const uint32_t fill = precision - 9 * i;
-                pad(&out, '0', fill);
-                break;
-            }
-
-            uint32_t digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
-            if (i < blocks - 1) // write digits
-            {
-                if (capacity_left(out) >= 9) // write directly
-                {
-                    append_nine_digits(digits, out.data + out.length);
-                    out.length += 9;
-                }
-                else // write only as much as fits
-                {
-                    char buf[10];
-                    append_nine_digits(digits, buf);
-                    concat(&out, buf, 9);
-                }
-            }
-            else // write rest of the digits, round them, and end loop
-            {
-                const uint32_t maximum = precision - 9 * i;
-                uint32_t lastDigit = 0;
-
-                // Note the loop condition. digits might contain more digits
-                // than 1 after loop.
-                for (uint32_t k = 0; k < 9 - maximum; ++k)
-                {
-                    lastDigit = digits % 10;
-                    digits /= 10;
-                }
-
-                // Determine if should round up
-                if (lastDigit != 5)
-                {
-                    roundUp = lastDigit > 5;
-                }
-                else
-                {
-                    // Is m * 10^(additionalDigits + 1) / 2^(-e2) integer?
-                    const int32_t requiredTwos = -e2 - (int32_t) precision - 1;
-                    const bool trailingZeros = requiredTwos <= 0 ||
-                        (requiredTwos < 60 && multipleOfPowerOf2(
-                            m2, (uint32_t) requiredTwos));
-                    roundUp = trailingZeros ? 2 : 1;
-                }
-
-                if (maximum > 0) // write the last digits left
-                {
-                    if (capacity_left(out) >= maximum) // write directly
-                    {
-                        append_c_digits(maximum, digits, out.data + out.length);
-                        out.length += maximum;
-                    }
-                    else // write only as much as fits
-                    {
-                        char buf[10];
-                        append_c_digits(maximum, digits, buf);
-                        concat(&out, buf, maximum);
-                    }
-                }
-                break;
-            }
-        }
-        int index = out.length; // TODO <------------
-
-        // Reminder:
-        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-        if (roundUp != 0)
-        {
-            int roundIndex = index; // Always <= index
-            int dotIndex = 0; // '.' can't be located at index 0
-            while (true)
-            { // round all 9 to 0 from left and the leftmost += 1
-                --roundIndex;
-                char c;
-
-                // Check if roundIndex went all the way left and round up to 1.0
-                if (roundIndex == -1 || (c = result[roundIndex], c == '-'))
-                {
-                    result[roundIndex + 1] = '1';
-                    if (dotIndex > 0)
-                    {
-                        result[dotIndex] = '0';
-                        result[dotIndex + 1] = '.';
-                    }
-                    //result[index++] = '0'; // extra cap only needed here
-                    push_char(&out, '0');
-                    break;
-                }
-
-                if (c == '.')
-                {
-                    dotIndex = roundIndex;
-                    continue;
-                }
-                else if (c == '9')
-                {
-                    result[roundIndex] = '0';
-                    roundUp = 1;
-                    continue;
-                }
-                else
-                {
-                    if (roundUp == 2 && c % 2 == 0)
-                        break;
-                    result[roundIndex] = c + 1;
-                    break;
-                }
-            }
-        }
-        out.length = index; // TODO <-----------
+        all_digits[0]    = 0;
+        digits_length    = 1;
+        integer_part_end = 1;
     }
-#else // NEW ------------------------ //
 
-    // TEMP at the moment integer part is written but later on they all get
-    // written once.
-    memset(all_digits, 0, sizeof(all_digits));
-    digits_length = 0;
+    // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
+    int roundUp = 0;
+    uint32_t lastDigit = 0;
+    uint32_t last_digit_magnitude = 1000*1000*1000;
+    uint32_t maximum = 0;
 
-    if (e2 < 0) // write fractional part
+    if (e2 < 0) // store fractional part
     {
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
-        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-        int roundUp = 0;
         uint32_t i = 0;
         if (blocks <= MIN_BLOCK_2[idx]) // write only zeroes
         {
             i = blocks; // skip the for-loop below
-            pad(&out, '0', precision);
+            pad(&out, '0', precision); // TODO WRITE ONLY AT THE END
         }
         else if (i < MIN_BLOCK_2[idx])
         {
             i = MIN_BLOCK_2[idx];
-            pad(&out, '0', 9 * i);
+            pad(&out, '0', 9 * i); // TODO WRITE ONLY AT THE END (I guess??)
         }
 
         uint32_t digits;
@@ -767,7 +545,7 @@ pf_d2fixed_buffered_n(
                 // If the remaining digits are all 0, then we might as well use
                 // pad(). No rounding required in this case.
                 const uint32_t fill = precision - 9 * i;
-                pad(&out, '0', fill);
+                pad(&out, '0', fill); // TODO WRITE ONLY AT THE END
 
                 break;
             }
@@ -778,14 +556,14 @@ pf_d2fixed_buffered_n(
 
         if (i == blocks)
         {
-            const uint32_t maximum = precision - 9 * (i-1);
-            uint32_t lastDigit = 0;
+            maximum = precision - 9 * (i - 1);
 
             // Note the loop condition. digits might contain more digits
             // than 1 after loop.
             for (uint32_t k = 0; k < 9 - maximum; ++k)
             {
                 lastDigit = digits % 10;
+                last_digit_magnitude /= 10;
                 digits /= 10;
             }
 
@@ -804,86 +582,101 @@ pf_d2fixed_buffered_n(
                 roundUp = trailingZeros ? 2 : 1;
             }
 
-            for (size_t k = 0; k < digits_length - 1; k++)
-            {
-                if (capacity_left(out) >= 9) // write directly
-                {
-                    append_nine_digits(all_digits[k], out.data + out.length);
-                    out.length += 9;
-                }
-                else // write only as much as fits
-                {
-                    char buf[10];
-                    append_nine_digits(all_digits[k], buf);
-                    concat(&out, buf, 9);
-                }
-            }
-
-            if (maximum > 0) // write the last digits left
-            {
-                if (capacity_left(out) >= maximum) // write directly
-                {
-                    append_c_digits(maximum, digits, out.data + out.length);
-                    out.length += maximum;
-                }
-                else // write only as much as fits
-                {
-                    char buf[10];
-                    append_c_digits(maximum, digits, buf);
-                    concat(&out, buf, maximum);
-                }
-            }
+            if (maximum > 0)
+                // digits was already written to last slot but it got processed
+                // so overwrite it
+                all_digits[digits_length - 1] = digits;
         }
-        int index = out.length; // TODO <------------
-
-        // Reminder:
-        // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-        if (roundUp != 0)
-        {
-            int roundIndex = index; // Always <= index
-            int dotIndex = 0; // '.' can't be located at index 0
-            while (true)
-            { // round all 9 to 0 from left and the leftmost += 1
-                --roundIndex;
-                char c;
-
-                // Check if roundIndex went all the way left and round up to 1.0
-                if (roundIndex == -1 || (c = result[roundIndex], c == '-'))
-                {
-                    result[roundIndex + 1] = '1';
-                    if (dotIndex > 0)
-                    {
-                        result[dotIndex] = '0';
-                        result[dotIndex + 1] = '.';
-                    }
-                    //result[index++] = '0'; // extra cap only needed here
-                    push_char(&out, '0');
-                    break;
-                }
-
-                if (c == '.')
-                {
-                    dotIndex = roundIndex;
-                    continue;
-                }
-                else if (c == '9')
-                {
-                    result[roundIndex] = '0';
-                    roundUp = 1;
-                    continue;
-                }
-                else
-                {
-                    if (roundUp == 2 && c % 2 == 0)
-                        break;
-                    result[roundIndex] = c + 1;
-                    break;
-                }
-            }
-        }
-        out.length = index; // TODO <-----------
     }
-#endif
+
+    if (roundUp)
+    {
+        all_digits[digits_length - 1] += 1;
+
+        if (all_digits[digits_length - 1] != last_digit_magnitude)
+            roundUp = false;
+
+        for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
+        {
+            if (all_digits[i] != (uint32_t)1000*1000*1000)
+            {
+                roundUp = false;
+                break;
+            }
+            all_digits[i] += 1;
+        }
+
+        if (roundUp)
+            all_digits[0] += 1;
+    }
+
+    // Start writing digits for integer part
+
+    if (capacity_left(out) >= 9) // write directly
+    {
+        out.length += pf_utoa(
+            capacity_left(out), out.data + out.length, all_digits[0]);
+    }
+    else // write only as much as fits
+    {
+        char buf[10];
+        unsigned buf_len = pf_utoa(sizeof(buf), buf, all_digits[0]);
+        concat(&out, buf, buf_len);
+    }
+
+    for (size_t i = 1; i < integer_part_end; i++)
+    {
+        if (capacity_left(out) >= 9) // write directly
+        {
+            append_nine_digits(all_digits[i], out.data + out.length);
+            out.length += 9;
+        }
+        else // write only as much as fits
+        {
+            char buf[10];
+            append_nine_digits(all_digits[i], buf);
+            concat(&out, buf, 9);
+        }
+    }
+
+    // Start writing digits for fractional part
+
+    if (digits_length != integer_part_end)
+    {
+        push_char(&out, '.');
+
+        for (size_t k = integer_part_end; k < digits_length - 1; k++)
+        {
+            if (capacity_left(out) >= 9) // write directly
+            {
+                append_nine_digits(all_digits[k], out.data + out.length);
+                out.length += 9;
+            }
+            else // write only as much as fits
+            {
+                char buf[10];
+                append_nine_digits(all_digits[k], buf);
+                concat(&out, buf, 9);
+            }
+        }
+
+        if (maximum > 0) // write the last digits left
+        {
+            if (capacity_left(out) >= maximum) // write directly
+            {
+                append_c_digits(
+                    maximum, all_digits[digits_length - 1], out.data + out.length);
+                out.length += maximum;
+            }
+            else // write only as much as fits
+            {
+                char buf[10];
+                append_c_digits(
+                    maximum, all_digits[digits_length - 1], out.data + out.length);
+                concat(&out, buf, maximum);
+            }
+        }
+    }
     else
     {
         pad(&out, '0', precision);
