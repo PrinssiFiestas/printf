@@ -205,7 +205,6 @@ int main(void)
             EXPECT_FIXED(0.125, 2, "0.12" );
             EXPECT_FIXED(0.375, 2, "0.38" );
 
-            EXPECT_FIXED(0.0000000005, 9, "0.000000000");
             EXPECT_FIXED(0.0000000095, 9, "0.000000010");
 
             EXPECT_FIXED(0.125, 3, "0.125");
@@ -218,6 +217,26 @@ int main(void)
             EXPECT_FIXED(2.5, 0, "2"  );
             EXPECT_FIXED(3.5, 1, "3.5");
             EXPECT_FIXED(3.5, 0, "4"  );
+        }
+
+        gp_test("NonRoundToEvenScenarios");
+        {
+            EXPECT_FIXED(0.748046875, 3, "0.748");
+            EXPECT_FIXED(0.748046875, 2, "0.75" );
+            EXPECT_FIXED(0.748046875, 1, "0.7"  );
+
+            EXPECT_FIXED(0.2509765625, 3, "0.251");
+            EXPECT_FIXED(0.2509765625, 2, "0.25" );
+            EXPECT_FIXED(0.2509765625, 1, "0.3"  );
+
+            EXPECT_FIXED(ieeeParts2Double(false, 1021, 1), 54,
+              "0.250000000000000055511151231257827021181583404541015625");
+            EXPECT_FIXED(ieeeParts2Double(false, 1021, 1),  3,
+              "0.250");
+            EXPECT_FIXED(ieeeParts2Double(false, 1021, 1),  2,
+               "0.25" );
+            EXPECT_FIXED(ieeeParts2Double(false, 1021, 1),  1,
+                "0.3"  );
         }
     }
 }

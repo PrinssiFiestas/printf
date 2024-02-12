@@ -574,8 +574,15 @@ pf_d2fixed_buffered_n(
             {
                 const bool any_left_in_digits = k < 9;
                 const uint32_t next_digit = any_left_in_digits ?
-                     digits : all_digits[digits_length - 2];
-                round_up = next_digit % 2;
+                    digits : all_digits[digits_length - 2];
+
+                const int32_t requiredTwos = -e2 - (int32_t) precision - 1;
+                const bool trailingZeros = requiredTwos <= 0 || (
+                    requiredTwos < 60 &&
+                    multipleOfPowerOf2(m2, (uint32_t)requiredTwos)
+                );
+
+                round_up = next_digit % 2 || ! trailingZeros;
             }
 
             all_digits[digits_length - 1] = digits;
