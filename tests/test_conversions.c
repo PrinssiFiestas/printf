@@ -67,7 +67,7 @@ int main(void)
         double f = 0.;
         int return_value = 0;
 
-        gp_test("ftoa normals");
+        gp_test("ftoa basic tests");
         {
             f = 3.14;
             return_value = pf_ftoa(SIZE_MAX, buf, f);
@@ -76,36 +76,30 @@ int main(void)
 
             f = 210123456789.0;
             return_value = pf_ftoa(SIZE_MAX, buf, f);
-            gp_expect(memcmp(buf, "210123456789.000000", strlen("210123456789.000000")) == 0, (buf));
+            expect_str(buf, "210123456789.000000");
             gp_expect(return_value == strlen("210123456789.000000"), (return_value));
 
             f = 0.123;
             return_value = pf_ftoa(SIZE_MAX, buf, f);
-            gp_expect(memcmp(buf, "0.123000", strlen("0.123000")) == 0, (buf));
+            expect_str(buf, "0.123000");
             gp_expect(return_value == strlen("0.123000"), (return_value));
 
             f = 0.012345678909876; // Note how 5 rounds up to 6
             return_value = pf_ftoa(SIZE_MAX, buf, f);
-            gp_expect(memcmp(buf, "0.012346", strlen("0.012346")) == 0, (buf));
+            expect_str(buf, "0.012346");
             gp_expect(return_value == strlen("0.012346"), (return_value));
 
             f = -13999.99999999999;
             return_value = pf_ftoa(SIZE_MAX, buf, f);
-            gp_expect(memcmp(buf, "-14000.000000", strlen("-14000.000000")) == 0, (buf));
+            expect_str(buf, "-14000.000000");
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
 
             f = -13999.99999999999;
             return_value = pf_ftoa(8, buf, f);
-            gp_expect(memcmp(buf, "-14000.0", strlen("-14000.0")) == 0, (buf));
+            buf[8] = '\0';
+            expect_str(buf, "-14000.0");
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
-
-            // Test rounding from truncated string
-            #if TODO
-            f = 0.123456;
-            return_value = pf_ftoa(5, buf, f);
-            gp_expect(memcmp(buf, "0.12346", strlen("0.12346")) == 0, (buf));
-            gp_expect(return_value == strlen("0.12346"), (return_value));
-            #endif
         }
     }
 }
+
