@@ -94,12 +94,10 @@ int main(void)
             gp_expect(memcmp(buf, "-14000.000000", strlen("-14000.000000")) == 0, (buf));
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
 
-            #if TODO
             f = -13999.99999999999;
             return_value = pf_ftoa(8, buf, f);
             gp_expect(memcmp(buf, "-14000.0", strlen("-14000.0")) == 0, (buf));
-            gp_expect(return_value == strlen("-14000.0"), (return_value));
-            #endif
+            gp_expect(return_value == strlen("-14000.000000"), (return_value));
 
             // Test rounding from truncated string
             #if TODO

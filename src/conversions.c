@@ -593,13 +593,16 @@ pf_d2fixed_buffered_n(
     {
         all_digits[digits_length - 1] += 1;
 
-        if (all_digits[digits_length - 1] != last_digit_magnitude)
+        if (all_digits[digits_length - 1] == last_digit_magnitude)
+            all_digits[digits_length - 1] = 0; // carry 1
+        else
             roundUp = false;
 
         for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
         {
-            if (all_digits[i] != (uint32_t)1000*1000*1000)
-            {
+            if (all_digits[i] == (uint32_t)1000*1000*1000) {
+                all_digits[i] = 0; // carry 1
+            } else {
                 roundUp = false;
                 break;
             }
@@ -672,7 +675,7 @@ pf_d2fixed_buffered_n(
             {
                 char buf[10];
                 append_c_digits(
-                    maximum, all_digits[digits_length - 1], out.data + out.length);
+                    maximum, all_digits[digits_length - 1], buf);
                 concat(&out, buf, maximum);
             }
         }
