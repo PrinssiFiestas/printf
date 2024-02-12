@@ -349,7 +349,15 @@ int main(void)
             EXPECT_FIXED(299.9, 0, "300"  );
         }
 
-
+        gp_test("RoundingResultZero");
+        {
+            EXPECT_FIXED(0.004, 3, "0.004");
+            EXPECT_FIXED(0.004, 2, "0.00" );
+            EXPECT_FIXED(0.4, 1, "0.4");
+            EXPECT_FIXED(0.4, 0, "0"  );
+            EXPECT_FIXED(0.5, 1, "0.5");
+            EXPECT_FIXED(0.5, 0, "0"  );
+        }
     }
 }
 
