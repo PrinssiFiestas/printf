@@ -199,6 +199,18 @@ int main(void)
                 EXPECT_FIXED(tc->value, tc->fixed_precision, tc->fixed_string);
             }
         }
+
+        gp_test("RoundToEven");
+        {
+            EXPECT_FIXED(0.125, 2, "0.12" );
+            EXPECT_FIXED(0.375, 2, "0.38" );
+
+            EXPECT_FIXED(0.0000000005, 9, "0.000000000");
+            EXPECT_FIXED(0.0000000095, 9, "0.000000010");
+
+            EXPECT_FIXED(0.125, 3, "0.125");
+            EXPECT_FIXED(0.375, 3, "0.375");
+        }
     }
 }
 

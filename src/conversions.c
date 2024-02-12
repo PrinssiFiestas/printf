@@ -514,9 +514,8 @@ pf_d2fixed_buffered_n(
         integer_part_end = 1;
     }
 
-    // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-    int roundUp = 0;
-    uint32_t lastDigit = 0;
+    bool round_up = false;
+    uint32_t lastDigit = 0; // to be cut off. Determines roundUp.
     uint32_t last_digit_magnitude = 1000*1000*1000;
     uint32_t maximum = 0;
     unsigned fract_leading_zeroes = 0;
@@ -526,6 +525,7 @@ pf_d2fixed_buffered_n(
     {
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
+
         uint32_t i = 0;
         if (blocks <= MIN_BLOCK_2[idx])
         {
@@ -558,28 +558,24 @@ pf_d2fixed_buffered_n(
         {
             maximum = precision - 9 * (i - 1);
 
-            // Note the loop condition. digits might contain more digits
-            // than 1 after loop.
-            for (uint32_t k = 0; k < 9 - maximum; ++k)
+            uint32_t k;
+            for (k = 0; k < 9 - maximum; ++k) // trim digits from right
             {
                 lastDigit = digits % 10;
                 last_digit_magnitude /= 10;
                 digits /= 10;
             }
 
-            // Determine if should round up
             if (lastDigit != 5)
             {
-                roundUp = lastDigit > 5;
+                round_up = lastDigit > 5;
             }
             else
             {
-                // Is m * 10^(additionalDigits + 1) / 2^(-e2) integer?
-                const int32_t requiredTwos = -e2 - (int32_t) precision - 1;
-                const bool trailingZeros = requiredTwos <= 0 ||
-                    (requiredTwos < 60 && multipleOfPowerOf2(
-                        m2, (uint32_t) requiredTwos));
-                roundUp = trailingZeros ? 2 : 1;
+                const bool any_left_in_digits = k < 9;
+                const uint32_t next_digit = any_left_in_digits ?
+                     digits : all_digits[digits_length - 2];
+                round_up = next_digit % 2;
             }
 
             if (maximum > 0)
@@ -589,14 +585,14 @@ pf_d2fixed_buffered_n(
         }
     }
 
-    if (roundUp)
+    if (round_up)
     {
         all_digits[digits_length - 1] += 1;
 
         if (all_digits[digits_length - 1] == last_digit_magnitude)
             all_digits[digits_length - 1] = 0; // carry 1
         else
-            roundUp = false;
+            round_up = false;
 
         for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
         {
@@ -604,12 +600,12 @@ pf_d2fixed_buffered_n(
             if (all_digits[i] == (uint32_t)1000*1000*1000) {
                 all_digits[i] = 0; // carry 1
             } else {
-                roundUp = false;
+                round_up = false;
                 break;
             }
         }
 
-        if (roundUp)
+        if (round_up)
             all_digits[0] += 1;
     }
 
