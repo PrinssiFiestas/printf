@@ -409,6 +409,9 @@ pf_copy_special_str_printf(
         push_char(out, '-');
     }
     concat(out, uppercase ? "INF" : "inf", strlen("inf"));
+    if (capacity_left(*out))
+        out->data[out->length] = '\0';
+
     return out->length;
 }
 
@@ -452,6 +455,9 @@ pf_d2fixed_buffered_n(
         if (precision > 0 || fmt.flag.hash)
             push_char(&out, '.');
         pad(&out, '0', precision);
+
+        if (capacity_left(out))
+            out.data[out.length] = '\0';
         return out.length;
     }
 

@@ -127,6 +127,15 @@ int main(void)
                 ieeeParts2Double(false, 1234, 99999), 0,
                 "3291009114715486435425664845573426149758869524108446525879746560");
         }
+
+        gp_test("Zero");
+        {
+            EXPECT_FIXED(0.0, 4, "0.0000");
+            EXPECT_FIXED(0.0, 3, "0.000" );
+            EXPECT_FIXED(0.0, 2, "0.00"  );
+            EXPECT_FIXED(0.0, 1, "0.0"   );
+            EXPECT_FIXED(0.0, 0, "0"     );
+        }
     }
 }
 
