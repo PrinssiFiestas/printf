@@ -60,10 +60,9 @@ int main(void)
         }
     } // gp_suite("Integer conversions");
 
+    char buf[2000] = "";
     gp_suite("Float conversions");
     {
-        char buf[2000] = "";
-
         double f = 0.;
         int return_value = 0;
 
@@ -71,7 +70,7 @@ int main(void)
         {
             f = 3.14;
             return_value = pf_ftoa(SIZE_MAX, buf, f);
-            gp_expect(memcmp(buf, "3.140000", strlen("3.140000")) == 0, (buf));
+            expect_str(buf, "3.140000");
             gp_expect(return_value == strlen("3.140000"), (return_value));
 
             f = 210123456789.0;
@@ -101,5 +100,50 @@ int main(void)
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
         }
     }
+
+        // ----- INTERNALS ----- //
+
+    gp_suite("pf_d2fixed"); //
+    {
+        double int64Bits2Double(uint64_t bits);
+        double ieeeParts2Double(
+            const bool sign,
+            const uint32_t ieeeExponent,
+            const uint64_t ieeeMantissa);
+        #define EXPECT_FIXED(f, prec, fstr) do \
+        { \
+            const char* _fstr = (fstr); \
+            PFFormatSpecifier fmt = \
+                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            unsigned return_value = \
+                pf_d2fixed_buffered_n(buf, SIZE_MAX, fmt, (f)); \
+            expect_str(buf, _fstr); \
+            gp_expect(return_value == strlen(_fstr)); \
+        } while (0);
+
+        gp_test("Basic");
+        {
+            EXPECT_FIXED(
+                ieeeParts2Double(false, 1234, 99999), 0,
+                "3291009114715486435425664845573426149758869524108446525879746560");
+        }
+    }
 }
 
+double int64Bits2Double(uint64_t bits)
+{
+    double f;
+    memcpy(&f, &bits, sizeof(double));
+    return f;
+}
+
+double ieeeParts2Double(
+    const bool sign,
+    const uint32_t ieeeExponent,
+    const uint64_t ieeeMantissa)
+{
+    assert(ieeeExponent <= 2047);
+    assert(ieeeMantissa <= ((uint64_t)1 << 53) - 1);
+    return int64Bits2Double(
+        ((uint64_t)sign << 63) | ((uint64_t)ieeeExponent << 52) | ieeeMantissa);
+}
