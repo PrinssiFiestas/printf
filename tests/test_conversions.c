@@ -290,6 +290,66 @@ int main(void)
             EXPECT_FIXED(1729.142857142857,  1, "1729.1");
             EXPECT_FIXED(1729.142857142857,  0, "1729");
         }
+
+        gp_test("Carrying");
+        {
+            EXPECT_FIXED(  0.0009, 4,   "0.0009");
+            EXPECT_FIXED(  0.0009, 3,   "0.001" );
+            EXPECT_FIXED(  0.0029, 4,   "0.0029");
+            EXPECT_FIXED(  0.0029, 3,   "0.003" );
+            EXPECT_FIXED(  0.0099, 4,   "0.0099");
+            EXPECT_FIXED(  0.0099, 3,   "0.010" );
+            EXPECT_FIXED(  0.0299, 4,   "0.0299");
+            EXPECT_FIXED(  0.0299, 3,   "0.030" );
+            EXPECT_FIXED(  0.0999, 4,   "0.0999");
+            EXPECT_FIXED(  0.0999, 3,   "0.100" );
+            EXPECT_FIXED(  0.2999, 4,   "0.2999");
+            EXPECT_FIXED(  0.2999, 3,   "0.300" );
+            EXPECT_FIXED(  0.9999, 4,   "0.9999");
+            EXPECT_FIXED(  0.9999, 3,   "1.000" );
+            EXPECT_FIXED(  2.9999, 4,   "2.9999");
+            EXPECT_FIXED(  2.9999, 3,   "3.000" );
+            EXPECT_FIXED(  9.9999, 4,   "9.9999");
+            EXPECT_FIXED(  9.9999, 3,  "10.000" );
+            EXPECT_FIXED( 29.9999, 4,  "29.9999");
+            EXPECT_FIXED( 29.9999, 3,  "30.000" );
+            EXPECT_FIXED( 99.9999, 4,  "99.9999");
+            EXPECT_FIXED( 99.9999, 3, "100.000" );
+            EXPECT_FIXED(299.9999, 4, "299.9999");
+            EXPECT_FIXED(299.9999, 3, "300.000" );
+
+            EXPECT_FIXED(  0.09, 2,   "0.09");
+            EXPECT_FIXED(  0.09, 1,   "0.1" );
+            EXPECT_FIXED(  0.29, 2,   "0.29");
+            EXPECT_FIXED(  0.29, 1,   "0.3" );
+            EXPECT_FIXED(  0.99, 2,   "0.99");
+            EXPECT_FIXED(  0.99, 1,   "1.0" );
+            EXPECT_FIXED(  2.99, 2,   "2.99");
+            EXPECT_FIXED(  2.99, 1,   "3.0" );
+            EXPECT_FIXED(  9.99, 2,   "9.99");
+            EXPECT_FIXED(  9.99, 1,  "10.0" );
+            EXPECT_FIXED( 29.99, 2,  "29.99");
+            EXPECT_FIXED( 29.99, 1,  "30.0" );
+            EXPECT_FIXED( 99.99, 2,  "99.99");
+            EXPECT_FIXED( 99.99, 1, "100.0" );
+            EXPECT_FIXED(299.99, 2, "299.99");
+            EXPECT_FIXED(299.99, 1, "300.0" );
+
+            EXPECT_FIXED(  0.9, 1,   "0.9");
+            EXPECT_FIXED(  0.9, 0,   "1"  );
+            EXPECT_FIXED(  2.9, 1,   "2.9");
+            EXPECT_FIXED(  2.9, 0,   "3"  );
+            EXPECT_FIXED(  9.9, 1,   "9.9");
+            EXPECT_FIXED(  9.9, 0,  "10"  );
+            EXPECT_FIXED( 29.9, 1,  "29.9");
+            EXPECT_FIXED( 29.9, 0,  "30"  );
+            EXPECT_FIXED( 99.9, 1,  "99.9");
+            EXPECT_FIXED( 99.9, 0, "100"  );
+            EXPECT_FIXED(299.9, 1, "299.9");
+            EXPECT_FIXED(299.9, 0, "300"  );
+        }
+
+
     }
 }
 
