@@ -562,9 +562,21 @@ pf_d2fixed_buffered_n(
             for (k = 0; k < 9 - maximum; ++k) // trim digits from right
             {
                 lastDigit = digits % 10;
-                last_digit_magnitude /= 10;
                 digits /= 10;
             }
+            const uint32_t magnitude_table[] = { // avoid work in loop
+                1000000000,
+                100000000,
+                10000000,
+                1000000,
+                100000,
+                10000,
+                1000,
+                100,
+                10,
+                1
+            };
+            last_digit_magnitude = magnitude_table[k];
 
             if (lastDigit != 5)
             {
