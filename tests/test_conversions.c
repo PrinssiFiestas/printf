@@ -358,6 +358,11 @@ int main(void)
             EXPECT_FIXED(0.5, 1, "0.5");
             EXPECT_FIXED(0.5, 0, "0"  );
         }
+
+        gp_test("Regression");
+        {
+            EXPECT_FIXED(7.018232e-82, 6, "0.000000");
+        }
     }
 }
 
