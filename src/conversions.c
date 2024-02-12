@@ -478,11 +478,7 @@ pf_d2fixed_buffered_n(
     if (ieeeSign)
         push_char(&out, '-');
 
-    // Longest string of significant digits that I have found had 1076 digits.
-    // A uint32_t can fit 9 decimal digits without losing precision which means
-    // that we need an array with size 1076/9 ≈ 120. Let's double that for good
-    // measure and round up a power of two.
-    uint32_t all_digits[256] = {};
+    uint32_t all_digits[256] = {}; // significant digits without trailing zeroes
     size_t digits_length = 0;
     size_t integer_part_end = 0; // place for decimal point
 
@@ -523,21 +519,23 @@ pf_d2fixed_buffered_n(
     uint32_t lastDigit = 0;
     uint32_t last_digit_magnitude = 1000*1000*1000;
     uint32_t maximum = 0;
+    unsigned fract_leading_zeroes = 0;
+    unsigned fract_trailing_zeroes = 0;
 
     if (e2 < 0) // store fractional part
     {
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
         uint32_t i = 0;
-        if (blocks <= MIN_BLOCK_2[idx]) // write only zeroes
+        if (blocks <= MIN_BLOCK_2[idx])
         {
             i = blocks; // skip the for-loop below
-            pad(&out, '0', precision); // TODO WRITE ONLY AT THE END
+            fract_leading_zeroes = precision;
         }
         else if (i < MIN_BLOCK_2[idx])
         {
             i = MIN_BLOCK_2[idx];
-            pad(&out, '0', 9 * i); // TODO WRITE ONLY AT THE END (I guess??)
+            fract_leading_zeroes = 9 * i;
         }
 
         uint32_t digits;
@@ -548,11 +546,7 @@ pf_d2fixed_buffered_n(
 
             if (p >= POW10_OFFSET_2[idx + 1])
             {
-                // If the remaining digits are all 0, then we might as well use
-                // pad(). No rounding required in this case.
-                const uint32_t fill = precision - 9 * i;
-                pad(&out, '0', fill); // TODO WRITE ONLY AT THE END
-
+                fract_trailing_zeroes = precision - 9 * i;
                 break;
             }
 
@@ -606,13 +600,13 @@ pf_d2fixed_buffered_n(
 
         for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
         {
+            all_digits[i] += 1;
             if (all_digits[i] == (uint32_t)1000*1000*1000) {
                 all_digits[i] = 0; // carry 1
             } else {
                 roundUp = false;
                 break;
             }
-            all_digits[i] += 1;
         }
 
         if (roundUp)
@@ -653,6 +647,7 @@ pf_d2fixed_buffered_n(
     if (digits_length != integer_part_end)
     {
         push_char(&out, '.');
+        pad(&out, '0', fract_leading_zeroes);
 
         for (size_t k = integer_part_end; k < digits_length - 1; k++)
         {
@@ -685,6 +680,8 @@ pf_d2fixed_buffered_n(
                 concat(&out, buf, maximum);
             }
         }
+
+        pad(&out, '0', fract_trailing_zeroes);
     }
     else
     {
