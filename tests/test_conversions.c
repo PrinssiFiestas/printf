@@ -211,6 +211,14 @@ int main(void)
             EXPECT_FIXED(0.125, 3, "0.125");
             EXPECT_FIXED(0.375, 3, "0.375");
         }
+
+        gp_test("RoundToEvenInteger");
+        {
+            EXPECT_FIXED(2.5, 1, "2.5");
+            EXPECT_FIXED(2.5, 0, "2"  );
+            EXPECT_FIXED(3.5, 1, "3.5");
+            EXPECT_FIXED(3.5, 0, "4"  );
+        }
     }
 }
 

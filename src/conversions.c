@@ -578,10 +578,7 @@ pf_d2fixed_buffered_n(
                 round_up = next_digit % 2;
             }
 
-            if (maximum > 0)
-                // digits was already written to last slot but it got processed
-                // so overwrite it
-                all_digits[digits_length - 1] = digits;
+            all_digits[digits_length - 1] = digits;
         }
     }
 
