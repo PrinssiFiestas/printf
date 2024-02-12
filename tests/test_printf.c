@@ -387,7 +387,7 @@ int main(void)
 
     // -------- INTERNAL ----------------- //
 
-    gp_suite("GPString");
+    gp_suite("PFString");
     {
         gp_test("insert_pad");
         {
