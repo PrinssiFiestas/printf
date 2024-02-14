@@ -112,7 +112,7 @@ int main(void)
 
         // ----- INTERNALS ----- //
 
-    gp_suite("pf_d2fixed"); //
+    gp_suite("pf_d2fixed");
     {
         double int64Bits2Double(uint64_t bits);
         double ieeeParts2Double(
@@ -377,6 +377,31 @@ int main(void)
         gp_test("Regression");
         {
             EXPECT_FIXED(7.018232e-82, 6, "0.000000");
+        }
+    }
+
+    gp_suite("pf_d2exp");
+    {
+        double int64Bits2Double(uint64_t bits);
+        double ieeeParts2Double(
+            const bool sign,
+            const uint32_t ieeeExponent,
+            const uint64_t ieeeMantissa);
+        #define EXPECT_EXP(f, prec, _expected) do \
+        { \
+            const char* expected = (_expected); \
+            PFFormatSpecifier fmt = \
+                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            unsigned return_value = \
+                pf_d2exp_buffered_n(buf, SIZE_MAX, fmt, (f)); \
+            expect_str(buf, expected); \
+            gp_expect(return_value == strlen(expected)); \
+        } while (0);
+
+        gp_test("Basic");
+        {
+            EXPECT_EXP(ieeeParts2Double(false, 1234, 99999), 62,
+            "3.29100911471548643542566484557342614975886952410844652587974656e+63");
         }
     }
 }
