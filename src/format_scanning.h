@@ -34,13 +34,20 @@ typedef struct PFFormatSpecifier
         } option;
     } precision;
 
-    char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
-    char conversion_format; // any of "csdioxXufFeEaAgGp". 'n' not supported.
+    unsigned char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
+    unsigned char conversion_format; // any of "csdioxXufFeEaAgGp". 'n' not supported.
 } PFFormatSpecifier;
+
+// Portability wrapper.
+// https://stackoverflow.com/questions/8047362/is-gcc-mishandling-a-pointer-to-a-va-list-passed-to-a-function
+typedef struct pf_va_list
+{
+    va_list list;
+} pf_va_list;
 
 PFFormatSpecifier
 scan_format_string(
     const char fmt_string[GP_STATIC sizeof("%i")],
-    va_list* asterisks); // optional
+    pf_va_list* asterisks); // optional
 
 #endif // FORMAT_SCANNING_H_INCLUDED

@@ -16,43 +16,43 @@ struct MiscData
     bool is_nan_or_inf;
 };
 
-static uintmax_t get_uint(va_list args[static 1], const PFFormatSpecifier fmt)
+static uintmax_t get_uint(pf_va_list args[static 1], const PFFormatSpecifier fmt)
 {
     if (fmt.conversion_format == 'p')
-        return va_arg(*args, uintptr_t);
+        return va_arg(args->list, uintptr_t);
 
     switch (fmt.length_modifier)
     {
         case 'j':
-            return va_arg(*args, uintmax_t);
+            return va_arg(args->list, uintmax_t);
 
         case 'l' * 2:
-            return va_arg(*args, unsigned long long);
+            return va_arg(args->list, unsigned long long);
 
         case 'l':
-            return va_arg(*args, unsigned long);
+            return va_arg(args->list, unsigned long);
 
         case 'h':
-            return (unsigned short)va_arg(*args, unsigned);
+            return (unsigned short)va_arg(args->list, unsigned);
 
         case 'h' * 2:
-            return (unsigned char)va_arg(*args, unsigned);
+            return (unsigned char)va_arg(args->list, unsigned);
 
         case 'z':
-            return (size_t)va_arg(*args, size_t);
+            return (size_t)va_arg(args->list, size_t);
 
         default:
-            return va_arg(*args, unsigned);
+            return va_arg(args->list, unsigned);
     }
 }
 
 static unsigned write_s(
     struct PFString* out,
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
-    const char* cstr = va_arg(*args, const char*);
+    const char* cstr = va_arg(args->list, const char*);
     if (cstr == NULL)
     {
         if (fmt.precision.option == PF_SOME &&
@@ -112,38 +112,38 @@ static void write_leading_zeroes(
 static unsigned write_i(
     struct PFString out[static 1],
     struct MiscData md[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     intmax_t i;
     switch (fmt.length_modifier)
     {
         case 'j':
-            i = va_arg(*args, intmax_t);
+            i = va_arg(args->list, intmax_t);
             break;
 
         case 'l' * 2:
-            i = va_arg(*args, long long);
+            i = va_arg(args->list, long long);
             break;
 
         case 'l':
-            i = va_arg(*args, long);
+            i = va_arg(args->list, long);
             break;
 
         case 'h':
-            i = (short)va_arg(*args, int);
+            i = (short)va_arg(args->list, int);
             break;
 
         case 'h' * 2: // signed char is NOT char!
-            i = (signed char)va_arg(*args, int);
+            i = (signed char)va_arg(args->list, int);
             break;
 
         case 't':
-            i = (ptrdiff_t)va_arg(*args, ptrdiff_t);
+            i = (ptrdiff_t)va_arg(args->list, ptrdiff_t);
             break;
 
         default:
-            i = va_arg(*args, int);
+            i = va_arg(args->list, int);
     }
 
     const size_t original_length = out->length;
@@ -164,7 +164,7 @@ static unsigned write_i(
 
 static unsigned write_o(
     struct PFString out[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
@@ -191,7 +191,7 @@ static unsigned write_o(
 static unsigned write_x(
     struct PFString out[static 1],
     struct MiscData md[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
@@ -213,7 +213,7 @@ static unsigned write_x(
 static unsigned write_X(
     struct PFString out[static 1],
     struct MiscData md[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
@@ -234,7 +234,7 @@ static unsigned write_X(
 
 static unsigned write_u(
     struct PFString out[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
@@ -247,7 +247,7 @@ static unsigned write_u(
 
 static unsigned write_p(
     struct PFString out[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     const size_t original_length = out->length;
@@ -277,7 +277,7 @@ progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
 static unsigned write_f(
     struct PFString out[static 1],
     struct MiscData md[static 1],
-    va_list args[static 1],
+    pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
     char* const start = out->data + out->length;
@@ -292,7 +292,7 @@ static unsigned write_f(
         ffmt,
         fmt.string + fmt.string_length - ffmt);
 
-    double f = va_arg(*args, double);
+    double f = va_arg(args->list, double);
 
     if (!signbit(f) && fmt.flag.plus)
     {
@@ -467,9 +467,11 @@ int pf_vsnprintf(
     char out_buf[static 1],
     const size_t max_size,
     const char format[static 1],
-    va_list args)
+    va_list _args)
 {
     struct PFString out = { out_buf, .capacity = max_size };
+    pf_va_list args;
+    va_copy(args.list, _args);
 
     while (1)
     {
@@ -485,7 +487,7 @@ int pf_vsnprintf(
         switch (fmt.conversion_format)
         {
             case 'c':
-                push_char(&out, (char)va_arg(args, int));
+                push_char(&out, (char)va_arg(args.list, int));
                 written_by_conversion = 1;
                 break;
 
@@ -546,7 +548,7 @@ int pf_vsnprintf(
                     // Only hope to get any portability.
                     out.length += snprintf(
                         out.data + out.length, max_size,
-                        fmt_buf, va_arg(args, long double));
+                        fmt_buf, va_arg(args.list, long double));
                     format = fmt.string + fmt.string_length;
                     continue;
                 }
@@ -576,6 +578,7 @@ int pf_vsnprintf(
     out.length += tail_length;
     out.data[out.length] = '\0';
 
+    va_end(args.list);
     return out.length;
 }
 

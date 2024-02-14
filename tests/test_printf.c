@@ -30,7 +30,7 @@ int main(void)
             pf_sprintf(buf, "blah %d blah", 15);
             expect_str(buf, "blah 15 blah");
 
-            pf_sprintf(buf, "blah %ti blah", -953);
+            pf_sprintf(buf, "blah %ti blah", (ptrdiff_t)-953);
             expect_str(buf, "blah -953 blah");
 
             pf_sprintf(buf,  "blah %lli blah", -LLONG_MAX + 5);
@@ -48,8 +48,8 @@ int main(void)
             sprintf(buf_std, "blah %lx blah", 0xfeedl);
             expect_str(buf, buf_std);
 
-            pf_sprintf(buf,  "blah %zX blah", 0xBEEF);
-            sprintf(buf_std, "blah %zX blah", 0xBEEF);
+            pf_sprintf(buf,  "blah %zX blah", (size_t)0xBEEF);
+            sprintf(buf_std, "blah %zX blah", (size_t)0xBEEF);
             expect_str(buf, buf_std);
         }
 
@@ -492,7 +492,7 @@ const char* random_format(char conversion_type)
     {
         // The capital ones are for convinience and will be turned into "hh"
         // and "ll" respectively. 'z' will be turned into 't' if signed.
-        const char modifiers[] = "hHlLhtz";
+        const char modifiers[] = "hHlLhz";
         const char modifier = modifiers[pcg32_boundedrand(strlen(modifiers))];
         if (modifier == 'H')
         {

@@ -3,7 +3,7 @@
 PFFormatSpecifier
 scan_format_string(
     const char fmt_string[static sizeof("%i")],
-    va_list* va_args)
+    pf_va_list* va_args)
 {
     PFFormatSpecifier fmt = { fmt_string };
 
@@ -41,7 +41,7 @@ scan_format_string(
             fmt.field.asterisk = true;
 
             int width = 0;
-            if (va_args != NULL && (width = va_arg(*va_args, int)) >= 0)
+            if (va_args != NULL && (width = va_arg(va_args->list, int)) >= 0)
             {
                 fmt.field.asterisk = false; // prevent recalling va_arg()
                 fmt.field.width = width;
@@ -81,7 +81,7 @@ scan_format_string(
             fmt.precision.option = PF_ASTERISK;
 
             int width = 0;
-            if (va_args != NULL && (width = va_arg(*va_args, int)) >= 0)
+            if (va_args != NULL && (width = va_arg(va_args->list, int)) >= 0)
             {
                 fmt.precision.option = PF_SOME;
                 fmt.precision.width = width;
