@@ -112,6 +112,15 @@ int main(void)
 
         // ----- INTERNALS ----- //
 
+    // These values test every binary exponent (which would be more obvious with
+    // hexfloats). The mantissas were randomly generated.
+    extern const struct test_case all_binary_exponents[];
+    extern const size_t all_binary_exponents_length;
+
+    // These values test every power of ten that's within the range of doubles.
+    extern const struct test_case all_powers_of_ten[];
+    extern const size_t all_powers_of_ten_length;
+
     gp_suite("pf_d2fixed");
     {
         double int64Bits2Double(uint64_t bits);
@@ -185,10 +194,6 @@ int main(void)
         {
             EXPECT_FIXED(0., 20, "0.""00000""00000""00000""00000");
         }
-
-        // These values test every power of ten that's within the range of doubles.
-        extern const struct test_case all_powers_of_ten[];
-        extern const size_t all_powers_of_ten_length;
 
         gp_test("AllPowersOfTen");
         {
@@ -359,11 +364,6 @@ int main(void)
             EXPECT_FIXED(0.5, 0, "0"  );
         }
 
-        // These values test every binary exponent (which would be more obvious
-        // with hexfloats). The mantissas were randomly generated.
-        extern const struct test_case all_binary_exponents[];
-        extern const size_t all_binary_exponents_length;
-
         gp_test("AllBinaryExponents");
         {
             for (const struct test_case* tc = all_binary_exponents;
@@ -438,10 +438,6 @@ int main(void)
                 "48274797826204144723168738177180919299881250404026184124858368"
                 "e+308");
         }
-
-        // These values test every power of ten that's within the range of doubles.
-        extern const struct test_case all_powers_of_ten[];
-        extern const size_t all_powers_of_ten_length;
 
         gp_test("AllPowersOfTen");
         {
@@ -604,11 +600,6 @@ int main(void)
             EXPECT_EXP(9.99e+99 , 1, "1.0e+100");
             EXPECT_EXP(9.99e+100, 1, "1.0e+101");
         }
-
-        // These values test every binary exponent (which would be more obvious
-        // with hexfloats). The mantissas were randomly generated.
-        extern const struct test_case all_binary_exponents[];
-        extern const size_t all_binary_exponents_length;
 
         gp_test("AllBinaryExponents");
         {

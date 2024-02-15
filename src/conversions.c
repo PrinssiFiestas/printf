@@ -10,6 +10,8 @@
 #include "d2fixed_full_table.h"
 #include "d2s_intrinsics.h"
 
+#include "pfstring.h"
+
 #define DOUBLE_MANTISSA_BITS 52
 #define DOUBLE_EXPONENT_BITS 11
 #define DOUBLE_BIAS 1023
@@ -306,6 +308,7 @@ append_d_digits(const uint32_t olength, uint32_t digits, char* const result)
         memcpy(result + olength + 1 - i - 4, DIGIT_TABLE + c1, 2);
         i += 4;
     }
+
     if (digits >= 100)
     {
         const uint32_t c = (digits % 100) << 1;
@@ -313,6 +316,7 @@ append_d_digits(const uint32_t olength, uint32_t digits, char* const result)
         memcpy(result + olength + 1 - i - 2, DIGIT_TABLE + c, 2);
         i += 2;
     }
+
     if (digits >= 10)
     {
         const uint32_t c = digits << 1;
@@ -324,6 +328,26 @@ append_d_digits(const uint32_t olength, uint32_t digits, char* const result)
     {
         result[1] = '.';
         result[0] = (char) ('0' + digits);
+    }
+}
+
+static inline void
+pf_append_d_digits(
+    struct PFString out[static 1],
+    const uint32_t maximum,
+    const uint32_t digits)
+{
+    if (capacity_left(*out) >= maximum) // write directly
+    {
+        append_d_digits(
+            maximum, digits, out->data + out->length);
+        out->length += maximum + strlen(".");
+    }
+    else // write only as much as fits
+    {
+        char buf[10];
+        append_d_digits(maximum, digits, buf);
+        concat(out, buf, maximum + strlen("."));
     }
 }
 
@@ -345,6 +369,27 @@ append_c_digits(const uint32_t count, uint32_t digits, char* const result)
     {
         const char c = (char) ('0' + (digits % 10));
         result[count - i - 1] = c;
+    }
+}
+
+static inline void
+pf_append_c_digits(
+    struct PFString out[static 1],
+    const uint32_t count,
+    const uint32_t digits)
+{
+    if (capacity_left(*out) >= count) // write directly
+    {
+        append_c_digits(
+            count, digits, out->data + out->length);
+        out->length += count;
+    }
+    else // write only as much as fits
+    {
+        char buf[10];
+        append_c_digits(
+            count, digits, buf);
+        concat(out, buf, count);
     }
 }
 
@@ -375,6 +420,22 @@ append_nine_digits(uint32_t digits, char* const result)
     result[0] = (char) ('0' + digits);
 }
 
+static inline void
+pf_append_nine_digits(struct PFString out[static 1], uint32_t digits)
+{
+    if (capacity_left(*out) >= 9) // write directly
+    {
+        append_nine_digits(digits, out->data + out->length);
+        out->length += 9;
+    }
+    else // write only as much as fits
+    {
+        char buf[10];
+        append_nine_digits(digits, buf);
+        concat(out, buf, 9);
+    }
+}
+
 static inline uint32_t indexForExponent(const uint32_t e)
 {
     return (e + 15) / 16;
@@ -394,8 +455,6 @@ static inline uint32_t lengthForIndex(const uint32_t idx)
 // ---------------------------------------------------------------------------
 //
 // START OF MODIFIED RYU
-
-#include "pfstring.h"
 
 static inline int
 pf_copy_special_str_printf(
@@ -649,17 +708,7 @@ pf_d2fixed_buffered_n(
 
     for (size_t i = 1; i < integer_part_end; i++)
     {
-        if (capacity_left(out) >= 9) // write directly
-        {
-            append_nine_digits(all_digits[i], out.data + out.length);
-            out.length += 9;
-        }
-        else // write only as much as fits
-        {
-            char buf[10];
-            append_nine_digits(all_digits[i], buf);
-            concat(&out, buf, 9);
-        }
+        pf_append_nine_digits(&out, all_digits[i]);
     }
 
     if (precision > 0)
@@ -673,35 +722,11 @@ pf_d2fixed_buffered_n(
 
         for (size_t k = integer_part_end; k < digits_length - 1; k++)
         {
-            if (capacity_left(out) >= 9) // write directly
-            {
-                append_nine_digits(all_digits[k], out.data + out.length);
-                out.length += 9;
-            }
-            else // write only as much as fits
-            {
-                char buf[10];
-                append_nine_digits(all_digits[k], buf);
-                concat(&out, buf, 9);
-            }
+            pf_append_nine_digits(&out, all_digits[k]);
         }
 
         if (maximum > 0) // write the last digits left
-        {
-            if (capacity_left(out) >= maximum) // write directly
-            {
-                append_c_digits(
-                    maximum, all_digits[digits_length - 1], out.data + out.length);
-                out.length += maximum;
-            }
-            else // write only as much as fits
-            {
-                char buf[10];
-                append_c_digits(
-                    maximum, all_digits[digits_length - 1], buf);
-                concat(&out, buf, maximum);
-            }
-        }
+            pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
 
         pad(&out, '0', fract_trailing_zeroes);
     }
@@ -748,22 +773,20 @@ pf_d2exp_buffered_n(
 
     if (ieeeExponent == 0 && ieeeMantissa == 0) // d = 0.0
     {
-        int index = 0;
         if (ieeeSign)
-            result[index++] = '-';
+            push_char(&out, '-');
+        push_char(&out, '0');
 
-        result[index++] = '0';
         if (precision > 0)
         {
-            result[index++] = '.';
-            memset(result + index, '0', precision);
-            index += precision;
+            push_char(&out, '.');
+            pad(&out, '0', precision);
         }
-        memcpy(result + index, "e+00", 4);
-        index += 4;
+        concat(&out, "e+00", strlen("e+00"));
 
-        result[index] = '\0';
-        return index;
+        if (capacity_left(out))
+            out.data[out.length] = '\0';
+        return out.length;
     }
 
     int32_t e2;
@@ -772,7 +795,7 @@ pf_d2exp_buffered_n(
         e2 = 1 - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS;
         m2 = ieeeMantissa;
     } else {
-        e2 = (int32_t) ieeeExponent - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS;
+        e2 = (int32_t)ieeeExponent - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS;
         m2 = (1ull << DOUBLE_MANTISSA_BITS) | ieeeMantissa;
     }
 
@@ -781,7 +804,7 @@ pf_d2exp_buffered_n(
     int index = 0;
 
     if (ieeeSign)
-        result[index++] = '-';
+        push_char(&out, '-');
 
     uint32_t digits = 0;
     uint32_t printedDigits = 0;
@@ -790,9 +813,9 @@ pf_d2exp_buffered_n(
 
     if (e2 >= -52)
     {
-        const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t) e2);
+        const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t)e2);
         const uint32_t p10bits = pow10BitsForIndex(idx);
-        const int32_t len = (int32_t) lengthForIndex(idx);
+        const int32_t len = (int32_t)lengthForIndex(idx);
         for (int32_t i = len - 1; i >= 0; --i)
         {
             const uint32_t j = p10bits - e2;
@@ -800,35 +823,31 @@ pf_d2exp_buffered_n(
             // push it to 128 or above, which is a slightly faster code path in
             // mulShift_mod1e9. Instead, we can just increase the multipliers.
             digits = mulShift_mod1e9(
-                m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t) (j + 8));
+                m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t)(j + 8));
 
-            if (printedDigits != 0)
-            {
+            if (printedDigits != 0) // never first iteration
+            { // write fractional part
                 if (printedDigits + 9 > precision)
                 {
                     availableDigits = 9;
                     break;
                 }
-                append_nine_digits(digits, result + index);
-                index += 9;
+
+                pf_append_nine_digits(&out, digits);
                 printedDigits += 9;
             }
-            else if (digits != 0)
-            {
+            else if (digits != 0) // only at first iteration
+            { // write integer part, a single digit
                 availableDigits = decimalLength9(digits);
                 exp = i * 9 + (int32_t) availableDigits - 1;
                 if (availableDigits > precision)
                     break;
 
                 if (printDecimalPoint)
-                {
-                    append_d_digits(availableDigits, digits, result + index);
-                    index += availableDigits + 1; // +1 for decimal point
-                }
+                    pf_append_d_digits(&out, availableDigits, digits);
                 else
-                {
-                    result[index++] = (char)('0' + digits);
-                }
+                    push_char(&out, '0' + digits);
+
                 printedDigits = availableDigits;
                 availableDigits = 0;
             }
@@ -842,7 +861,7 @@ pf_d2exp_buffered_n(
         for (int32_t i = MIN_BLOCK_2[idx]; i < 200; ++i)
         {
             const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
-            const uint32_t p = POW10_OFFSET_2[idx] + (uint32_t) i - MIN_BLOCK_2[idx];
+            const uint32_t p = POW10_OFFSET_2[idx] + (uint32_t)i - MIN_BLOCK_2[idx];
             // Temporary: j is usually around 128, and by shifting a bit, we
             // push it to 128 or above, which is a slightly faster code path in
             // mulShift_mod1e9. Instead, we can just increase the multipliers.
@@ -856,27 +875,23 @@ pf_d2exp_buffered_n(
                     availableDigits = 9;
                     break;
                 }
-                append_nine_digits(digits, result + index);
-                index += 9;
+
+                pf_append_nine_digits(&out, digits);
                 printedDigits += 9;
             }
             else if (digits != 0)
             {
                 availableDigits = decimalLength9(digits);
-                exp = -(i + 1) * 9 + (int32_t) availableDigits - 1;
+                exp = -(i + 1) * 9 + (int32_t)availableDigits - 1;
 
-                if (availableDigits > precision)
+                if (availableDigits > precision) // skip last digits for now
                     break;
 
                 if (printDecimalPoint)
-                {
-                    append_d_digits(availableDigits, digits, result + index);
-                    index += availableDigits + 1; // +1 for decimal point
-                }
+                    pf_append_d_digits(&out, availableDigits, digits);
                 else
-                {
-                    result[index++] = (char)('0' + digits);
-                }
+                    push_char(&out, '0' + digits);
+
                 printedDigits = availableDigits;
                 availableDigits = 0;
             }
@@ -886,10 +901,10 @@ pf_d2exp_buffered_n(
     const uint32_t maximum = precision - printedDigits;
 
     if (availableDigits == 0)
-    digits = 0;
+        digits = 0;
 
     uint32_t lastDigit = 0;
-    if (availableDigits > maximum)
+    if (availableDigits > maximum) // find last digit
     {
         for (uint32_t k = 0; k < availableDigits - maximum; ++k)
         {
@@ -908,7 +923,7 @@ pf_d2exp_buffered_n(
     {
         // Is m * 2^e2 * 10^(precision + 1 - exp) integer?
         // precision was already increased by 1, so we don't need to write + 1 here.
-        const int32_t rexp = (int32_t) precision - exp;
+        const int32_t rexp = (int32_t)precision - exp;
         const int32_t requiredTwos = -e2 - rexp;
         bool trailingZeros = requiredTwos <= 0 ||
             (requiredTwos < 60 && multipleOfPowerOf2(m2, (uint32_t)requiredTwos));
@@ -925,24 +940,19 @@ pf_d2exp_buffered_n(
     if (printedDigits != 0)
     {
         if (digits == 0)
-            memset(result + index, '0', maximum);
+            pad(&out, '0', maximum);
         else
-            append_c_digits(maximum, digits, result + index);
-
-        index += maximum;
+            pf_append_c_digits(&out, maximum, digits);
     }
     else
     {
         if (printDecimalPoint)
-        {
-            append_d_digits(maximum, digits, result + index);
-            index += maximum + 1; // +1 for decimal point
-        }
+            pf_append_d_digits(&out, maximum, digits);
         else
-        {
-          result[index++] = (char) ('0' + digits);
-        }
+            push_char(&out, '0' + digits);
     }
+
+    index = out.length; // <------- TODO
 
     if (roundUp != 0)
     {
