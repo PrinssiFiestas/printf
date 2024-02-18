@@ -801,7 +801,6 @@ pf_d2exp_buffered_n(
 
     const bool printDecimalPoint = precision > 0;
     ++precision;
-    int index = 0;
 
     if (ieeeSign)
         push_char(&out, '-');
@@ -1027,32 +1026,25 @@ pf_d2exp_buffered_n(
             push_char(&out, '0' + all_digits[0]);
     }
 
-    index = out.length; // <------- TODO
-
-    result[index++] = 'e';
-    if (exp < 0)
-    {
-        result[index++] = '-';
+    push_char(&out, 'e');
+    if (exp < 0) {
+        push_char(&out, '-');
         exp = -exp;
-    }
-    else
-    {
-        result[index++] = '+';
+    } else {
+        push_char(&out, '+');
     }
 
-    if (exp >= 100)
-    {
+    char buf[4] = "";
+    if (exp >= 100) {
         const int32_t c = exp % 10;
-        memcpy(result + index, DIGIT_TABLE + 2 * (exp / 10), 2);
-        result[index + 2] = (char) ('0' + c);
-        index += 3;
+        memcpy(buf, DIGIT_TABLE + 2 * (exp / 10), 2);
+        buf[2] = '0' + c;
+    } else {
+        memcpy(buf, DIGIT_TABLE + 2 * exp, 2);
     }
-    else
-    {
-        memcpy(result + index, DIGIT_TABLE + 2 * exp, 2);
-        index += 2;
-    }
+    concat(&out, buf, strlen(buf));
 
-    result[index] = '\0';
-    return index;
+    if (capacity_left(out))
+        out.data[out.length] = '\0';
+    return out.length;
 }
