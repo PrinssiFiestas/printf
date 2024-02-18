@@ -811,6 +811,10 @@ pf_d2exp_buffered_n(
     uint32_t availableDigits = 0;
     int32_t exp = 0;
 
+    uint32_t all_digits[256] = {}; // significant digits without trailing zeroes
+    size_t digits_length = 0;
+    uint32_t first_available_digits = 0;
+
     if (e2 >= -52)
     {
         const uint32_t idx = e2 < 0 ? 0 : indexForExponent((uint32_t)e2);
@@ -826,33 +830,58 @@ pf_d2exp_buffered_n(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t)(j + 8));
 
             if (printedDigits != 0) // never first iteration
-            { // write fractional part
+            { // write fractional part excluding last max 9 digits
                 if (printedDigits + 9 > precision)
                 {
                     availableDigits = 9;
                     break;
                 }
 
-                pf_append_nine_digits(&out, digits);
+                // pf_append_nine_digits(&out, digits); // TODO remove
+                all_digits[digits_length++] = digits;
                 printedDigits += 9;
             }
             else if (digits != 0) // only at first iteration
             { // write integer part, a single digit
-                availableDigits = decimalLength9(digits);
-                exp = i * 9 + (int32_t) availableDigits - 1;
-                if (availableDigits > precision)
+                // availableDigits = decimalLength9(digits);
+                // exp = i * 9 + (int32_t) availableDigits - 1;
+                // if (availableDigits > precision)
+                //     break;
+
+                // if (printDecimalPoint)
+                //     pf_append_d_digits(&out, availableDigits, digits);
+                // else
+                //     push_char(&out, '0' + digits);
+
+                // printedDigits = availableDigits;
+                // availableDigits = 0;
+
+                first_available_digits = decimalLength9(digits);
+                exp = i * 9 + first_available_digits - 1;
+                if (first_available_digits > precision)
+                {
+                    availableDigits = first_available_digits;
                     break;
+                }
 
-                if (printDecimalPoint)
-                    pf_append_d_digits(&out, availableDigits, digits);
-                else
-                    push_char(&out, '0' + digits);
+                all_digits[0] = digits;
+                digits_length = 1;
 
-                printedDigits = availableDigits;
-                availableDigits = 0;
+                printedDigits = first_available_digits;
             }
         }
     }
+
+    if (printedDigits) // ------
+    {
+        if (printDecimalPoint)
+            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
+        else // is this the same but just not printing decimal point?
+            push_char(&out, '0' + all_digits[0]);
+
+        for (size_t i = 1; i < digits_length; i++)
+            pf_append_nine_digits(&out, all_digits[i]);
+    } // ----------------------
 
     if (e2 < 0 && availableDigits == 0)
     {
