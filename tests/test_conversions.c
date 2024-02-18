@@ -128,6 +128,7 @@ int main(void)
             const bool sign,
             const uint32_t ieeeExponent,
             const uint64_t ieeeMantissa);
+
         #define EXPECT_FIXED(f, prec, _expected) do \
         { \
             const char* expected = (_expected); \
@@ -136,6 +137,17 @@ int main(void)
             unsigned return_value = \
                 pf_d2fixed_buffered_n(buf, SIZE_MAX, fmt, (f)); \
             expect_str(buf, expected); \
+            gp_expect(return_value == strlen(expected)); \
+        } while (0);
+
+        #define ASSERT_FIXED(f, prec, _expected) do \
+        { \
+            const char* expected = (_expected); \
+            PFFormatSpecifier fmt = \
+                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            unsigned return_value = \
+                pf_d2fixed_buffered_n(buf, SIZE_MAX, fmt, (f)); \
+            assert_str(buf, expected); \
             gp_expect(return_value == strlen(expected)); \
         } while (0);
 
@@ -201,7 +213,7 @@ int main(void)
                 tc < all_powers_of_ten + all_powers_of_ten_length;
                 tc++)
             {
-                EXPECT_FIXED(tc->value, tc->fixed_precision, tc->fixed_string);
+                ASSERT_FIXED(tc->value, tc->fixed_precision, tc->fixed_string);
             }
         }
 
@@ -370,7 +382,7 @@ int main(void)
                 tc < all_binary_exponents + all_binary_exponents_length;
                 tc++)
             {
-                EXPECT_FIXED(tc->value, tc->fixed_precision, tc->fixed_string);
+                ASSERT_FIXED(tc->value, tc->fixed_precision, tc->fixed_string);
             }
         }
 
@@ -387,6 +399,7 @@ int main(void)
             const bool sign,
             const uint32_t ieeeExponent,
             const uint64_t ieeeMantissa);
+
         #define EXPECT_EXP(f, prec, _expected) do \
         { \
             const char* expected = (_expected); \
@@ -395,6 +408,17 @@ int main(void)
             unsigned return_value = \
                 pf_d2exp_buffered_n(buf, SIZE_MAX, fmt, (f)); \
             expect_str(buf, expected); \
+            gp_expect(return_value == strlen(expected)); \
+        } while (0);
+
+        #define ASSERT_EXP(f, prec, _expected) do \
+        { \
+            const char* expected = (_expected); \
+            PFFormatSpecifier fmt = \
+                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            unsigned return_value = \
+                pf_d2exp_buffered_n(buf, SIZE_MAX, fmt, (f)); \
+            assert_str(buf, expected); \
             gp_expect(return_value == strlen(expected)); \
         } while (0);
 
@@ -445,7 +469,7 @@ int main(void)
                 tc < all_powers_of_ten + all_powers_of_ten_length;
                 tc++)
             {
-                EXPECT_EXP(tc->value, tc->exp_precision, tc->exp_string);
+                ASSERT_EXP(tc->value, tc->exp_precision, tc->exp_string);
             }
         }
 
@@ -607,7 +631,7 @@ int main(void)
                 tc < all_binary_exponents + all_binary_exponents_length;
                 tc++)
             {
-                EXPECT_EXP(tc->value, tc->exp_precision, tc->exp_string);
+                ASSERT_EXP(tc->value, tc->exp_precision, tc->exp_string);
             }
         }
 
