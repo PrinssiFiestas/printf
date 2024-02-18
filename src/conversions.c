@@ -807,7 +807,7 @@ pf_d2exp_buffered_n(
         push_char(&out, '-');
 
     uint32_t digits = 0;
-    uint32_t printedDigits = 0;
+    uint32_t stored_digits = 0;
     uint32_t availableDigits = 0;
     int32_t exp = 0;
 
@@ -829,16 +829,16 @@ pf_d2exp_buffered_n(
             digits = mulShift_mod1e9(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t)(j + 8));
 
-            if (printedDigits != 0) // never first iteration
+            if (stored_digits != 0) // never first iteration
             { // write fractional part excluding last max 9 digits
-                if (printedDigits + 9 > precision)
+                if (stored_digits + 9 > precision)
                 {
                     availableDigits = 9;
                     break;
                 }
 
                 all_digits[digits_length++] = digits;
-                printedDigits += 9;
+                stored_digits += 9;
             }
             else if (digits != 0) // only at first iteration
             { // write integer part, a single digit
@@ -854,7 +854,7 @@ pf_d2exp_buffered_n(
                 all_digits[0] = digits;
                 digits_length = 1;
 
-                printedDigits = first_available_digits;
+                stored_digits = first_available_digits;
             }
         }
     }
@@ -873,16 +873,16 @@ pf_d2exp_buffered_n(
             digits = (p >= POW10_OFFSET_2[idx + 1]) ?
                 0 : mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
 
-            if (printedDigits != 0) // never first iteration
+            if (stored_digits != 0) // never first iteration
             { // write fractional part excluding last max 9 digits
-                if (printedDigits + 9 > precision)
+                if (stored_digits + 9 > precision)
                 {
                     availableDigits = 9;
                     break;
                 }
 
                 all_digits[digits_length++] = digits;
-                printedDigits += 9;
+                stored_digits += 9;
             }
             else if (digits != 0) // only at first iteration
             { // write integer part, a single digit
@@ -898,36 +898,53 @@ pf_d2exp_buffered_n(
                 all_digits[0] = digits;
                 digits_length = 1;
 
-                printedDigits = first_available_digits;
+                stored_digits = first_available_digits;
             }
         }
     }
 
-    const uint32_t maximum = precision - printedDigits;
+    const uint32_t maximum = precision - stored_digits;
 
     if (availableDigits == 0)
         digits = 0;
 
     uint32_t lastDigit = 0;
+    uint32_t k = 0;
     if (availableDigits > maximum) // find last digit
     {
-        for (uint32_t k = 0; k < availableDigits - maximum; ++k)
+        for (k = 0; k < availableDigits - maximum; ++k)
         {
             lastDigit = digits % 10;
             digits /= 10;
         }
     }
+    const uint32_t magnitude_table[] = { // avoid work in loop
+        1000000000,
+        100000000,
+        10000000,
+        1000000,
+        100000,
+        10000,
+        1000,
+        100,
+        10,
+        1
+    };
+    const uint32_t last_digit_magnitude = magnitude_table[k];
 
-    // 0 = don't round up; 1 = round up unconditionally; 2 = round up if odd.
-    int roundUp = 0;
+    all_digits[digits_length++] = digits;
+
+    bool round_up = false;
     if (lastDigit != 5)
     {
-        roundUp = lastDigit > 5;
+        round_up = lastDigit > 5;
     }
     else
     {
-        // Is m * 2^e2 * 10^(precision + 1 - exp) integer?
-        // precision was already increased by 1, so we don't need to write + 1 here.
+        const bool any_left_in_digits = k < 9;
+        const uint32_t next_digit = any_left_in_digits ?
+            digits : all_digits[digits_length - 2];
+
         const int32_t rexp = (int32_t)precision - exp;
         const int32_t requiredTwos = -e2 - rexp;
         bool trailingZeros = requiredTwos <= 0 ||
@@ -939,68 +956,78 @@ pf_d2exp_buffered_n(
             trailingZeros = trailingZeros &&
                 multipleOfPowerOf5(m2, (uint32_t)requiredFives);
         }
-        roundUp = trailingZeros ? 2 : 1;
+        round_up = next_digit % 2 || ! trailingZeros;
     }
 
-    if (printedDigits != 0)
+    if (round_up && digits_length >= 2)
+    {
+        all_digits[digits_length - 1] += 1;
+
+        if (all_digits[digits_length - 1] == last_digit_magnitude)
+            all_digits[digits_length - 1] = 0; // carry 1
+        else
+            round_up = false;
+
+        if (round_up)
+        {
+            for (size_t i = digits_length - 2; i > 0; i--) // keep rounding
+            {
+                all_digits[i] += 1;
+                if (all_digits[i] == (uint32_t)1000*1000*1000) {
+                    all_digits[i] = 0; // carry 1
+                } else {
+                    round_up = false;
+                    break;
+                }
+            }
+        }
+
+        if (round_up)
+        {
+            all_digits[0] += 1;
+            if (all_digits[0] == magnitude_table[9 - first_available_digits])
+            {
+                all_digits[0] = 1;
+                ++exp;
+            }
+        }
+    }
+    else if (round_up)
+    {
+        all_digits[0] += 1;
+        if (all_digits[0] == last_digit_magnitude)
+        {
+            if (exp >= 0)
+                exp--;
+            else
+                exp++;
+        }
+    }
+
+    if (stored_digits != 0)
     {
         if (printDecimalPoint)
             pf_append_d_digits(&out, first_available_digits, all_digits[0]);
-        else // is this the same but just not printing decimal point?
+        else
             push_char(&out, '0' + all_digits[0]);
 
-        for (size_t i = 1; i < digits_length; i++)
+        for (size_t i = 1; i < digits_length - 1; i++)
             pf_append_nine_digits(&out, all_digits[i]);
 
-        if (digits == 0)
+        if (all_digits[digits_length - 1] == 0)
             pad(&out, '0', maximum);
         else
-            pf_append_c_digits(&out, maximum, digits);
+            pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
     }
     else
     {
         if (printDecimalPoint)
-            pf_append_d_digits(&out, maximum, digits);
+            pf_append_d_digits(&out, maximum, all_digits[0]);
         else
-            push_char(&out, '0' + digits);
+            push_char(&out, '0' + all_digits[0]);
     }
 
     index = out.length; // <------- TODO
-
-    if (roundUp != 0)
-    {
-        int roundIndex = index;
-        while (true)
-        {
-            --roundIndex;
-            char c;
-            if (roundIndex == -1 || (c = result[roundIndex], c == '-'))
-            {
-                result[roundIndex + 1] = '1';
-                ++exp;
-                break;
-            }
-
-            if (c == '.')
-            {
-                continue;
-            }
-            else if (c == '9')
-            {
-                result[roundIndex] = '0';
-                roundUp = 1;
-                continue;
-            }
-            else
-            {
-                if (roundUp == 2 && c % 2 == 0)
-                    break;
-
-                result[roundIndex] = c + 1;
-                break;
-            }
-        }
-    }
 
     result[index++] = 'e';
     if (exp < 0)
