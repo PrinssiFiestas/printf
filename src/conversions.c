@@ -903,17 +903,6 @@ pf_d2exp_buffered_n(
         }
     }
 
-    if (printedDigits) // ------ NEW
-    {
-        if (printDecimalPoint)
-            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
-        else // is this the same but just not printing decimal point?
-            push_char(&out, '0' + all_digits[0]);
-
-        for (size_t i = 1; i < digits_length; i++)
-            pf_append_nine_digits(&out, all_digits[i]);
-    } // ----------------------
-
     const uint32_t maximum = precision - printedDigits;
 
     if (availableDigits == 0)
@@ -955,6 +944,14 @@ pf_d2exp_buffered_n(
 
     if (printedDigits != 0)
     {
+        if (printDecimalPoint)
+            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
+        else // is this the same but just not printing decimal point?
+            push_char(&out, '0' + all_digits[0]);
+
+        for (size_t i = 1; i < digits_length; i++)
+            pf_append_nine_digits(&out, all_digits[i]);
+
         if (digits == 0)
             pad(&out, '0', maximum);
         else
