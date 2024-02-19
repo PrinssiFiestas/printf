@@ -280,6 +280,23 @@ static unsigned write_f(
     pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {
+    const double f = va_arg(args->list, double);
+    const unsigned written_by_conversion = pf_strfromd(
+        out->data + out->length, out->capacity, fmt, f);
+    out->length += written_by_conversion;
+
+    md->has_sign = signbit(f) || fmt.flag.plus || fmt.flag.space;
+    md->is_nan_or_inf = isnan(f) || isinf(f);
+
+    return written_by_conversion;
+}
+
+static unsigned write_other_float(
+    struct PFString out[static 1],
+    struct MiscData md[static 1],
+    pf_va_list args[static 1],
+    const PFFormatSpecifier fmt)
+{
     char* const start = out->data + out->length;
     const size_t original_length = out->length;
 
@@ -481,6 +498,9 @@ int pf_vsnprintf(
 
         concat(&out, format, fmt.string - format);
 
+        // Jump over format specifier for next iteration
+        format = fmt.string + fmt.string_length;
+
         unsigned written_by_conversion = 0;
         struct MiscData misc = {};
 
@@ -528,6 +548,10 @@ int pf_vsnprintf(
                 break;
 
             case 'f': case 'F':
+                written_by_conversion += write_f(
+                    &out, &misc, &args, fmt);
+                break;
+
             case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
@@ -549,10 +573,9 @@ int pf_vsnprintf(
                     out.length += snprintf(
                         out.data + out.length, max_size,
                         fmt_buf, va_arg(args.list, long double));
-                    format = fmt.string + fmt.string_length;
                     continue;
                 }
-                written_by_conversion += write_f(
+                written_by_conversion += write_other_float(
                     &out, &misc, &args, fmt);
                 break;
 
@@ -567,9 +590,6 @@ int pf_vsnprintf(
                 written_by_conversion,
                 misc,
                 fmt);
-
-        // Jump over format specifier
-        format = fmt.string + fmt.string_length;
     }
 
     // Write what's left in format string

@@ -1,5 +1,4 @@
 #include "conversions.h"
-#include "format_scanning.h"
 #include "d2s_full_table.h"
 #include <inttypes.h>
 #include <math.h>
@@ -190,7 +189,10 @@ unsigned pf_strfromd(
     const PFFormatSpecifier fmt,
     const double f)
 {
-    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+    if (fmt.conversion_format == 'f' || fmt.conversion_format == 'F')
+        return pf_d2fixed_buffered_n(buf, n, fmt, f);
+    else
+        return pf_d2exp_buffered_n(buf, n, fmt, f);
 }
 
 // ---------------------------------------------------------------------------
@@ -539,8 +541,13 @@ pf_d2fixed_buffered_n(
     }
 
     bool is_zero = true; // for now
+
     if (ieeeSign)
         push_char(&out, '-');
+    else if (fmt.flag.plus)
+        push_char(&out, '+');
+    else if (fmt.flag.space)
+        push_char(&out, ' ');
 
     uint32_t all_digits[256] = {}; // significant digits without trailing zeroes
     size_t digits_length = 0;
@@ -661,7 +668,10 @@ pf_d2fixed_buffered_n(
                 round_up = next_digit % 2 || ! trailingZeros;
             }
 
-            all_digits[digits_length - 1] = digits;
+            if (digits_length != integer_part_end) // update modified digits
+                all_digits[digits_length - 1] = digits;
+            else // digits never stored, nowhere to round
+                round_up = false;
         }
     }
 
@@ -711,7 +721,7 @@ pf_d2fixed_buffered_n(
         pf_append_nine_digits(&out, all_digits[i]);
     }
 
-    if (precision > 0)
+    if (precision > 0 || fmt.flag.hash)
         push_char(&out, '.');
 
     // Start writing digits for fractional part
@@ -777,7 +787,7 @@ pf_d2exp_buffered_n(
             push_char(&out, '-');
         push_char(&out, '0');
 
-        if (precision > 0)
+        if (precision > 0 || fmt.flag.hash)
         {
             push_char(&out, '.');
             pad(&out, '0', precision);
