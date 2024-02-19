@@ -173,14 +173,14 @@ unsigned
 pf_gtoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'g'};
-    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+    return pf_d2exp_buffered_n(buf, n, fmt, f);
 }
 
 unsigned
 pf_Gtoa(const size_t n, char* const buf, const double f)
 {
     const PFFormatSpecifier fmt = {.conversion_format = 'G'};
-    return pf_d2fixed_buffered_n(buf, n, fmt, f);
+    return pf_d2exp_buffered_n(buf, n, fmt, f);
 }
 
 unsigned pf_strfromd(
@@ -191,8 +191,12 @@ unsigned pf_strfromd(
 {
     if (fmt.conversion_format == 'f' || fmt.conversion_format == 'F')
         return pf_d2fixed_buffered_n(buf, n, fmt, f);
+    //else if (fmt.conversion_format == 'e' || fmt.conversion_format == 'E')
     else
         return pf_d2exp_buffered_n(buf, n, fmt, f);
+// TODO remove comments
+    // else 'g' or 'G'
+
 }
 
 // ---------------------------------------------------------------------------
@@ -756,8 +760,12 @@ pf_d2exp_buffered_n(
 {
     struct PFString out = { result, .capacity = n };
     unsigned precision;
+    const bool fmt_is_g =
+        fmt.conversion_format == 'g' || fmt.conversion_format == 'G';
+    const bool g_0_prec = fmt.precision.width == 0 && fmt_is_g;
+
     if (fmt.precision.option == PF_SOME)
-        precision = fmt.precision.width;
+        precision = g_0_prec ? 1 : fmt.precision.width;
     else
         precision = 6;
 
@@ -792,9 +800,13 @@ pf_d2exp_buffered_n(
         if (precision > 0 || fmt.flag.hash)
         {
             push_char(&out, '.');
-            pad(&out, '0', precision);
+            pad(&out, '0', precision - fmt_is_g);
         }
-        concat(&out, "e+00", strlen("e+00"));
+
+        if (fmt.conversion_format == 'e')
+            concat(&out, "e+00", strlen("e+00"));
+        else if (fmt.conversion_format == 'E')
+            concat(&out, "E+00", strlen("E+00"));
 
         if (capacity_left(out))
             out.data[out.length] = '\0';

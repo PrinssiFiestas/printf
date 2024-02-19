@@ -102,12 +102,27 @@ int main(void)
             expect_str(buf, "-14000.000000");
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
 
+            memset(buf, 0, 20); // because truncation and null-termination
             f = -13999.99999999999;
             return_value = pf_ftoa(8, buf, f);
-            buf[8] = '\0';
             expect_str(buf, "-14000.0");
             gp_expect(return_value == strlen("-14000.000000"), (return_value));
+
+            f = 0.0;
+            return_value = pf_ftoa(SIZE_MAX, buf, f);
+            expect_str(buf, "0.000000");
+            gp_expect(return_value == strlen("0.000000"), (return_value));
         }
+
+        gp_test("gtoa basic tests");
+        {
+            f = 0.0;
+            return_value = pf_gtoa(SIZE_MAX, buf, f);
+            expect_str(buf, "0.00000");
+            gp_expect(return_value == strlen("0.00000"), (return_value));
+        }
+
+        // TODO NAN
     }
 
         // ----- INTERNALS ----- //
@@ -403,8 +418,10 @@ int main(void)
         #define EXPECT_EXP(f, prec, _expected) do \
         { \
             const char* expected = (_expected); \
-            PFFormatSpecifier fmt = \
-                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            PFFormatSpecifier fmt = { \
+                .precision = {.option = PF_SOME, .width = (prec) }, \
+                .conversion_format = 'e' \
+            }; \
             unsigned return_value = \
                 pf_d2exp_buffered_n(buf, SIZE_MAX, fmt, (f)); \
             expect_str(buf, expected); \
@@ -414,8 +431,10 @@ int main(void)
         #define ASSERT_EXP(f, prec, _expected) do \
         { \
             const char* expected = (_expected); \
-            PFFormatSpecifier fmt = \
-                {.precision = {.option = PF_SOME, .width = (prec)} }; \
+            PFFormatSpecifier fmt = { \
+                .precision = {.option = PF_SOME, .width = (prec) }, \
+                .conversion_format = 'e' \
+            }; \
             unsigned return_value = \
                 pf_d2exp_buffered_n(buf, SIZE_MAX, fmt, (f)); \
             assert_str(buf, expected); \
