@@ -458,22 +458,22 @@ static inline uint32_t lengthForIndex(const uint32_t idx)
 //
 // START OF MODIFIED RYU
 
-static inline int
+static inline unsigned
 pf_copy_special_str_printf(
     struct PFString out[const static 1],
     const bool sign,
     const uint64_t mantissa,
     const bool uppercase)
 {
+    if (sign)
+        push_char(out, '-');
+
     if (mantissa != 0)
     {
         concat(out, uppercase ? "NAN" : "nan", strlen("nan"));
         return out->length;
     }
-    if (sign)
-    {
-        push_char(out, '-');
-    }
+
     concat(out, uppercase ? "INF" : "inf", strlen("inf"));
     if (capacity_left(*out))
         out->data[out->length] = '\0';
@@ -588,7 +588,7 @@ pf_d2fixed_buffered_n(
     bool round_up = false;
     uint32_t lastDigit = 0; // to be cut off. Determines roundUp.
     uint32_t last_digit_magnitude = 1000*1000*1000;
-    uint32_t maximum = 0;
+    uint32_t maximum = 9;
     unsigned fract_leading_zeroes = 0;
     unsigned fract_trailing_zeroes = 0;
 
