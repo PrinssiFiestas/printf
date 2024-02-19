@@ -471,14 +471,17 @@ pf_copy_special_str_printf(
     if (mantissa != 0)
     {
         concat(out, uppercase ? "NAN" : "nan", strlen("nan"));
+        if (capacity_left(*out))
+            out->data[out->length] = '\0';
         return out->length;
     }
-
-    concat(out, uppercase ? "INF" : "inf", strlen("inf"));
-    if (capacity_left(*out))
-        out->data[out->length] = '\0';
-
-    return out->length;
+    else
+    {
+        concat(out, uppercase ? "INF" : "inf", strlen("inf"));
+        if (capacity_left(*out))
+            out->data[out->length] = '\0';
+        return out->length;
+    }
 }
 
 static unsigned
