@@ -548,11 +548,11 @@ int pf_vsnprintf(
                 break;
 
             case 'f': case 'F':
+            case 'e': case 'E':
                 written_by_conversion += write_f(
                     &out, &misc, &args, fmt);
                 break;
 
-            case 'e': case 'E':
             case 'a': case 'A':
             case 'g': case 'G':
                 if (sizeof(long double) != sizeof(double) && (

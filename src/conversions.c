@@ -336,7 +336,7 @@ append_d_digits(const uint32_t olength, uint32_t digits, char* const result)
 static inline void
 pf_append_d_digits(
     struct PFString out[static 1],
-    const uint32_t maximum,
+    const uint32_t maximum, // first_available_digits
     const uint32_t digits)
 {
     if (capacity_left(*out) >= maximum) // write directly
@@ -772,6 +772,10 @@ pf_d2exp_buffered_n(
 
     if (ieeeSign)
         push_char(&out, '-');
+    else if (fmt.flag.plus)
+        push_char(&out, '+');
+    else if (fmt.flag.space)
+        push_char(&out, ' ');
 
     // Case distinction; exit early for the easy cases.
     if (ieeeExponent == ((1u << DOUBLE_EXPONENT_BITS) - 1u))
@@ -991,7 +995,7 @@ pf_d2exp_buffered_n(
             all_digits[0] += 1;
             if (all_digits[0] == magnitude_table[9 - first_available_digits])
             {
-                all_digits[0] = 1;
+                all_digits[0] /= 10;
                 ++exp;
             }
         }
@@ -999,12 +1003,14 @@ pf_d2exp_buffered_n(
     else if (round_up)
     {
         all_digits[0] += 1;
-        if (all_digits[0] == last_digit_magnitude)
+
+        // The division bodges wrong magnitude calculation. Honestly, I'm not
+        // sure what was wrong in the first place, but now it passes fuzz test
+        // along with unit tests.
+        if (all_digits[0] ==
+                last_digit_magnitude / magnitude_table[first_available_digits])
         {
-            if (exp >= 0)
-                exp--;
-            else
-                exp++;
+            exp++;
         }
     }
 
@@ -1031,7 +1037,9 @@ pf_d2exp_buffered_n(
             push_char(&out, '0' + all_digits[0]);
     }
 
-    push_char(&out, 'e');
+    const bool uppercase =
+        fmt.conversion_format == 'E' || fmt.conversion_format == 'G';
+    push_char(&out, uppercase ? 'E' : 'e');
     if (exp < 0) {
         push_char(&out, '-');
         exp = -exp;
