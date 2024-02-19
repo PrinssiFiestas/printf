@@ -4,7 +4,9 @@
 #include "pcg_basic.h"
 #include <time.h>
 
+#ifndef FUZZ_TEST_LOOP_COUNT
 #define FUZZ_TEST_LOOP_COUNT 65536
+#endif
 
 int main(void)
 {

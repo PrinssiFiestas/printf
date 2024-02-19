@@ -461,13 +461,9 @@ static inline uint32_t lengthForIndex(const uint32_t idx)
 static inline unsigned
 pf_copy_special_str_printf(
     struct PFString out[const static 1],
-    const bool sign,
     const uint64_t mantissa,
     const bool uppercase)
 {
-    if (sign)
-        push_char(out, '-');
-
     if (mantissa != 0)
     {
         concat(out, uppercase ? "NAN" : "nan", strlen("nan"));
@@ -507,18 +503,23 @@ pf_d2fixed_buffered_n(
     const uint32_t ieeeExponent = (uint32_t)
         ((bits >> DOUBLE_MANTISSA_BITS) & ((1u << DOUBLE_EXPONENT_BITS) - 1));
 
+    if (ieeeSign)
+        push_char(&out, '-');
+    else if (fmt.flag.plus)
+        push_char(&out, '+');
+    else if (fmt.flag.space)
+        push_char(&out, ' ');
+
     // Case distinction; exit early for the easy cases.
     if (ieeeExponent == ((1u << DOUBLE_EXPONENT_BITS) - 1u))
     {
         const bool uppercase =
             fmt.conversion_format == 'F' || fmt.conversion_format == 'G';
-        return pf_copy_special_str_printf(&out, ieeeSign, ieeeMantissa, uppercase);
+        return pf_copy_special_str_printf(&out, ieeeMantissa, uppercase);
     }
 
     if (ieeeExponent == 0 && ieeeMantissa == 0) // d == 0.0
     {
-        if (ieeeSign)
-            push_char(&out, '-');
         push_char(&out, '0');
 
         if (precision > 0 || fmt.flag.hash)
@@ -544,13 +545,6 @@ pf_d2fixed_buffered_n(
     }
 
     bool is_zero = true; // for now
-
-    if (ieeeSign)
-        push_char(&out, '-');
-    else if (fmt.flag.plus)
-        push_char(&out, '+');
-    else if (fmt.flag.space)
-        push_char(&out, ' ');
 
     uint32_t all_digits[256] = {}; // significant digits without trailing zeroes
     size_t digits_length = 0;
@@ -776,18 +770,19 @@ pf_d2exp_buffered_n(
     const uint32_t ieeeExponent = (uint32_t)
         ((bits >> DOUBLE_MANTISSA_BITS) & ((1u << DOUBLE_EXPONENT_BITS) - 1));
 
+    if (ieeeSign)
+        push_char(&out, '-');
+
     // Case distinction; exit early for the easy cases.
     if (ieeeExponent == ((1u << DOUBLE_EXPONENT_BITS) - 1u))
     {
         const bool uppercase =
             fmt.conversion_format == 'E' || fmt.conversion_format == 'G';
-        return pf_copy_special_str_printf(&out, ieeeSign, ieeeMantissa, uppercase);
+        return pf_copy_special_str_printf(&out, ieeeMantissa, uppercase);
     }
 
     if (ieeeExponent == 0 && ieeeMantissa == 0) // d = 0.0
     {
-        if (ieeeSign)
-            push_char(&out, '-');
         push_char(&out, '0');
 
         if (precision > 0 || fmt.flag.hash)
@@ -814,9 +809,6 @@ pf_d2exp_buffered_n(
 
     const bool printDecimalPoint = precision > 0;
     ++precision;
-
-    if (ieeeSign)
-        push_char(&out, '-');
 
     uint32_t digits = 0;
     uint32_t stored_digits = 0;
