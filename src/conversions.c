@@ -599,6 +599,16 @@ pf_d2fixed_buffered_n(
         digits_length    = 1;
         integer_part_end = 1;
     }
+    else if (fmt_is_g)
+    {
+        const uint32_t significant_digits = decimalLength9(all_digits[0]) +
+            9*(integer_part_end - 1);
+
+        if (significant_digits >= precision)
+            precision = 0;
+        else
+            precision -= significant_digits;
+    }
 
     bool round_up = false;
     uint32_t lastDigit = 0; // to be cut off. Determines roundUp.
@@ -728,7 +738,7 @@ pf_d2fixed_buffered_n(
 
     // Start writing digits for fractional part
 
-    if ( ! fmt_is_g)
+    if ( ! fmt_is_g || fmt.flag.hash)
     {
         if (precision > 0 || fmt.flag.hash)
             push_char(&out, '.');
