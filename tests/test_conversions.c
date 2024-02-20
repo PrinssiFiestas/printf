@@ -120,12 +120,24 @@ int main(void)
             return_value = pf_gtoa(SIZE_MAX, buf, f);
             expect_str(buf, "0.00000");
             gp_expect(return_value == strlen("0.00000"), (return_value));
+
+            f = 120.0;
+            return_value = pf_gtoa(SIZE_MAX, buf, f);
+            expect_str(buf, "120");
+            gp_expect(return_value == strlen("120"), (return_value));
+
+            f = 30.1;
+            return_value = pf_gtoa(SIZE_MAX, buf, f);
+            expect_str(buf, "30.1");
+            gp_expect(return_value == strlen("30.1"), (return_value));
         }
 
         // TODO NAN
     }
 
         // ----- INTERNALS ----- //
+
+    // Ryu tests below.
 
     // These values test every binary exponent (which would be more obvious with
     // hexfloats). The mantissas were randomly generated.

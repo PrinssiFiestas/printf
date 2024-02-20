@@ -442,6 +442,22 @@ pf_append_nine_digits(struct PFString out[static 1], uint32_t digits)
     }
 }
 
+static inline void
+append_utoa(struct PFString out[static 1], uint32_t digits)
+{
+    if (capacity_left(*out) >= 9) // write directly
+    {
+        out->length += pf_utoa(
+            capacity_left(*out), out->data + out->length, digits);
+    }
+    else // write only as much as fits
+    {
+        char buf[10];
+        unsigned buf_len = pf_utoa(sizeof(buf), buf, digits);
+        concat(out, buf, buf_len);
+    }
+}
+
 static inline uint32_t indexForExponent(const uint32_t e)
 {
     return (e + 15) / 16;
@@ -492,6 +508,8 @@ pf_d2fixed_buffered_n(
     const double d)
 {
     struct PFString out = { result, .capacity = n };
+    const bool fmt_is_g =
+        fmt.conversion_format == 'g' || fmt.conversion_format == 'G';
     unsigned precision;
     if (fmt.precision.option == PF_SOME)
         precision = fmt.precision.width;
@@ -705,45 +723,69 @@ pf_d2fixed_buffered_n(
 
     // Start writing digits for integer part
 
-    if (capacity_left(out) >= 9) // write directly
-    {
-        out.length += pf_utoa(
-            capacity_left(out), out.data + out.length, all_digits[0]);
-    }
-    else // write only as much as fits
-    {
-        char buf[10];
-        unsigned buf_len = pf_utoa(sizeof(buf), buf, all_digits[0]);
-        concat(&out, buf, buf_len);
-    }
+    append_utoa(&out, all_digits[0]);
 
     for (size_t i = 1; i < integer_part_end; i++)
     {
         pf_append_nine_digits(&out, all_digits[i]);
     }
 
-    if (precision > 0 || fmt.flag.hash)
-        push_char(&out, '.');
-
     // Start writing digits for fractional part
 
-    if (digits_length != integer_part_end)
+    if ( ! fmt_is_g)
     {
-        pad(&out, '0', fract_leading_zeroes);
+        if (precision > 0 || fmt.flag.hash)
+            push_char(&out, '.');
 
-        for (size_t k = integer_part_end; k < digits_length - 1; k++)
+        if (digits_length != integer_part_end)
         {
-            pf_append_nine_digits(&out, all_digits[k]);
+            pad(&out, '0', fract_leading_zeroes);
+
+            for (size_t k = integer_part_end; k < digits_length - 1; k++)
+                pf_append_nine_digits(&out, all_digits[k]);
+
+            if (maximum > 0) // write the last digits left
+                pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
+
+            pad(&out, '0', fract_trailing_zeroes);
         }
-
-        if (maximum > 0) // write the last digits left
-            pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
-
-        pad(&out, '0', fract_trailing_zeroes);
+        else
+        {
+            pad(&out, '0', precision);
+        }
     }
     else
     {
-        pad(&out, '0', precision);
+        // Trim trailing zeroes
+        while (digits_length != integer_part_end)
+        {
+            if (all_digits[digits_length - 1] == 0)
+            {
+                digits_length--;
+                continue;
+            }
+            else
+            {
+                while (all_digits[digits_length - 1] != 0)
+                {
+                    if (all_digits[digits_length - 1] % 10 == 0)
+                        all_digits[digits_length - 1] /= 10;
+                    else
+                        goto end_trim_zeroes;
+                }
+            }
+        } end_trim_zeroes:
+
+        if (digits_length != integer_part_end)
+        {
+            push_char(&out, '.');
+            pad(&out, '0', fract_leading_zeroes);
+
+            for (size_t k = integer_part_end; k < digits_length - 1; k++)
+                pf_append_nine_digits(&out, all_digits[k]);
+
+            append_utoa(&out, all_digits[digits_length - 1]);
+        }
     }
 
     if (capacity_left(out))
@@ -1025,6 +1067,10 @@ pf_d2exp_buffered_n(
             exp++;
         }
     }
+
+    // Exponent is known now and we can determine the appropriate 'g' conversion
+    if (fmt_is_g && ! (exp < -4 || exp >= (int32_t)precision))
+        return pf_d2fixed_buffered_n(result, n, fmt, d);
 
     if (stored_digits != 0)
     {
