@@ -8,6 +8,10 @@
 #define FUZZ_TEST_LOOP_COUNT 65536
 #endif
 
+#ifndef FUZZ_SEED_OFFSET
+#define FUZZ_SEED_OFFSET 0
+#endif
+
 int main(void)
 {
     char buf[512] = "";
@@ -251,7 +255,8 @@ int main(void)
             time_t t = time(NULL);
             struct tm* gmt = gmtime(&t);
             gp_assert(gmt != NULL);
-            pcg32_srandom(gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year);
+            pcg32_srandom(
+                gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year + FUZZ_SEED_OFFSET);
         }
         const unsigned loop_count = FUZZ_TEST_LOOP_COUNT;
         const char* random_format(char conversion_type);

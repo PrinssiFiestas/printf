@@ -1072,10 +1072,6 @@ pf_d2exp_buffered_n(
     else if (round_up)
     {
         all_digits[0] += 1;
-
-        // The division bodges wrong magnitude calculation. Honestly, I'm not
-        // sure what was wrong in the first place, but now it passes fuzz test
-        // along with unit tests.
         if (all_digits[0] ==
                 last_digit_magnitude / magnitude_table[first_available_digits])
         {
@@ -1112,21 +1108,24 @@ pf_d2exp_buffered_n(
     }
     else // 'g'
     {
+        uint32_t last_digits_length = maximum;
         // Trim trailing zeroes
         while (digits_length > 0)
         {
             if (all_digits[digits_length - 1] == 0)
             {
                 digits_length--;
+                last_digits_length = 9;
                 continue;
             }
             else
             {
                 while (all_digits[digits_length - 1] != 0)
                 {
-                    if (all_digits[digits_length - 1] % 10 == 0)
+                    if (all_digits[digits_length - 1] % 10 == 0) {
                         all_digits[digits_length - 1] /= 10;
-                    else
+                        last_digits_length--;
+                    } else
                         goto end_trim_zeroes;
                 }
             }
@@ -1140,12 +1139,14 @@ pf_d2exp_buffered_n(
                 pf_append_nine_digits(&out, all_digits[i]);
 
             if (all_digits[digits_length - 1] != 0)
-                pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
+                pf_append_c_digits(
+                    &out, last_digits_length, all_digits[digits_length - 1]);
         }
         else
         {
             if (all_digits[0] >= 10)
-                pf_append_d_digits(&out, maximum, all_digits[0]);
+                pf_append_d_digits(
+                    &out, decimalLength9(all_digits[0]), all_digits[0]);
             else
                 push_char(&out, '0' + all_digits[0]);
         }
