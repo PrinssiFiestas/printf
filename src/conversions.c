@@ -655,13 +655,16 @@ pf_d2fixed_buffered_n(
         if (fmt_is_g && is_zero && first_try)
         {
             uint32_t total_leading_zeroes = fract_leading_zeroes;
-            for (size_t i = integer_part_end; i < digits_length - 1; i++)
+
+            size_t i;
+            for (i = integer_part_end; i < digits_length - 1; i++)
             {
                 if (all_digits[i] == 0)
                     total_leading_zeroes += 9;
                 else break;
             }
-            total_leading_zeroes += 9 - decimalLength9(digits);
+            total_leading_zeroes += 9 - decimalLength9(all_digits[i]);
+            //total_leading_zeroes += 9 - decimalLength9(digits);
 
             if (total_leading_zeroes > 0)
             {
