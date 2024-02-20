@@ -191,12 +191,8 @@ unsigned pf_strfromd(
 {
     if (fmt.conversion_format == 'f' || fmt.conversion_format == 'F')
         return pf_d2fixed_buffered_n(buf, n, fmt, f);
-    //else if (fmt.conversion_format == 'e' || fmt.conversion_format == 'E')
     else
         return pf_d2exp_buffered_n(buf, n, fmt, f);
-// TODO remove comments
-    // else 'g' or 'G'
-
 }
 
 // ---------------------------------------------------------------------------
@@ -801,15 +797,24 @@ pf_d2exp_buffered_n(
     const double d)
 {
     struct PFString out = { result, .capacity = n };
-    unsigned precision;
     const bool fmt_is_g =
         fmt.conversion_format == 'g' || fmt.conversion_format == 'G';
-    const bool g_0_prec = fmt.precision.width == 0 && fmt_is_g;
 
-    if (fmt.precision.option == PF_SOME)
-        precision = g_0_prec ? 1 : fmt.precision.width;
-    else
-        precision = 6;
+    unsigned precision;
+    if ( ! fmt_is_g)
+    {
+        if (fmt.precision.option == PF_SOME)
+            precision = fmt.precision.width;
+        else
+            precision = 6;
+    }
+    else // precision = significant digits so subtract 1, integer part
+    {
+        if (fmt.precision.option == PF_SOME)
+            precision = fmt.precision.width - !!fmt.precision.width;
+        else
+            precision = 6 - 1;
+    }
 
     const uint64_t bits = double_to_bits(d);
 
@@ -842,7 +847,7 @@ pf_d2exp_buffered_n(
         if (precision > 0 || fmt.flag.hash)
         {
             push_char(&out, '.');
-            pad(&out, '0', precision - fmt_is_g);
+            pad(&out, '0', precision);
         }
 
         if (fmt.conversion_format == 'e')
