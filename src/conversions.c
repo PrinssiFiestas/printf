@@ -617,7 +617,9 @@ pf_d2fixed_buffered_n(
     unsigned fract_leading_zeroes = 0;
     unsigned fract_trailing_zeroes = 0;
 
-    if (e2 < 0) // store fractional part
+    // Might have to update precision with 'g' and recalculate, thus loop
+    bool first_try = true;
+    while (e2 < 0) // store fractional part
     {
         const int32_t idx = -e2 / 16;
         const uint32_t blocks = precision / 9 + 1;
@@ -648,6 +650,26 @@ pf_d2fixed_buffered_n(
 
             digits = mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
             all_digits[digits_length++] = digits;
+        }
+
+        if (fmt_is_g && is_zero && first_try)
+        {
+            uint32_t total_leading_zeroes = fract_leading_zeroes;
+            for (size_t i = integer_part_end; i < digits_length - 1; i++)
+            {
+                if (all_digits[i] == 0)
+                    total_leading_zeroes += 9;
+                else break;
+            }
+            total_leading_zeroes += 9 - decimalLength9(digits);
+
+            if (total_leading_zeroes > 0)
+            {
+                precision += total_leading_zeroes;
+                digits_length = integer_part_end; // reset all_digits[]
+                first_try = false;
+                continue; // try again
+            }
         }
 
         if (i == blocks)
@@ -698,6 +720,8 @@ pf_d2fixed_buffered_n(
             else // digits never stored, nowhere to round
                 round_up = false;
         }
+
+        break;
     }
 
     if (round_up)
@@ -768,21 +792,23 @@ pf_d2fixed_buffered_n(
             if (all_digits[digits_length - 1] == 0)
             {
                 digits_length--;
+                maximum = 9;
                 continue;
             }
             else
             {
                 while (all_digits[digits_length - 1] != 0)
                 {
-                    if (all_digits[digits_length - 1] % 10 == 0)
+                    if (all_digits[digits_length - 1] % 10 == 0) {
                         all_digits[digits_length - 1] /= 10;
-                    else
+                        maximum--;
+                    } else
                         goto end_trim_zeroes;
                 }
             }
         } end_trim_zeroes:
 
-        if (digits_length != integer_part_end)
+        if (digits_length > integer_part_end)
         {
             push_char(&out, '.');
             pad(&out, '0', fract_leading_zeroes);
@@ -790,7 +816,7 @@ pf_d2fixed_buffered_n(
             for (size_t k = integer_part_end; k < digits_length - 1; k++)
                 pf_append_nine_digits(&out, all_digits[k]);
 
-            append_utoa(&out, all_digits[digits_length - 1]);
+            pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
         }
     }
 
@@ -907,7 +933,7 @@ pf_d2exp_buffered_n(
                 m2 << 8, POW10_SPLIT[POW10_OFFSET[idx] + i], (int32_t)(j + 8));
 
             if (stored_digits != 0) // never first iteration
-            { // write fractional part excluding last max 9 digits
+            { // store fractional part excluding last max 9 digits
                 if (stored_digits + 9 > precision)
                 {
                     availableDigits = 9;
@@ -918,7 +944,7 @@ pf_d2exp_buffered_n(
                 stored_digits += 9;
             }
             else if (digits != 0) // only at first iteration
-            { // write integer part, a single digit
+            { // store integer part, a single digit
                 first_available_digits = decimalLength9(digits);
                 exp = i * 9 + first_available_digits - 1;
 
@@ -951,7 +977,7 @@ pf_d2exp_buffered_n(
                 0 : mulShift_mod1e9(m2 << 8, POW10_SPLIT_2[p], j + 8);
 
             if (stored_digits != 0) // never first iteration
-            { // write fractional part excluding last max 9 digits
+            { // store fractional part excluding last max 9 digits
                 if (stored_digits + 9 > precision)
                 {
                     availableDigits = 9;
@@ -962,7 +988,7 @@ pf_d2exp_buffered_n(
                 stored_digits += 9;
             }
             else if (digits != 0) // only at first iteration
-            { // write integer part, a single digit
+            { // store integer part, a single digit
                 first_available_digits = decimalLength9(digits);
                 exp = -(i + 1) * 9 + first_available_digits - 1;
 

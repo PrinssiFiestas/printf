@@ -135,6 +135,11 @@ int main(void)
             return_value = pf_gtoa(SIZE_MAX, buf, f);
             expect_str(buf, "1e-06");
             gp_expect(return_value == strlen("1e-06"), (return_value));
+
+            f = 0.00123456;
+            return_value = pf_gtoa(SIZE_MAX, buf, f);
+            expect_str(buf, "0.00123456");
+            gp_expect(return_value == strlen("0.00123456"), (return_value));
         }
 
         // TODO NAN
