@@ -1111,6 +1111,8 @@ pf_d2exp_buffered_n(
 
     if ( ! printDecimalPoint)
     {
+        if (all_digits[0] == 10) // rounded up from 9
+            all_digits[0] = 1;
         push_char(&out, '0' + all_digits[0]);
         if (fmt.flag.hash)
             push_char(&out, '.');
