@@ -1086,8 +1086,10 @@ pf_d2exp_buffered_n(
     if ( ! printDecimalPoint)
     {
         push_char(&out, '0' + all_digits[0]);
+        if (fmt.flag.hash)
+            push_char(&out, '.');
     }
-    else if ( ! fmt_is_g)
+    else if ( ! fmt_is_g || fmt.flag.hash)
     {
         if (stored_digits != 0)
         {
