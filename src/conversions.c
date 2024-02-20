@@ -664,7 +664,6 @@ pf_d2fixed_buffered_n(
                 else break;
             }
             total_leading_zeroes += 9 - decimalLength9(all_digits[i]);
-            //total_leading_zeroes += 9 - decimalLength9(digits);
 
             if (total_leading_zeroes > 0)
             {
@@ -752,6 +751,9 @@ pf_d2fixed_buffered_n(
 
         if (round_up)
             all_digits[0] += 1;
+
+        if (round_up && fmt_is_g && is_zero)
+            maximum--;
     }
 
     // Start writing digits for integer part

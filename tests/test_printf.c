@@ -4,8 +4,8 @@
 #include "pcg_basic.h"
 #include <time.h>
 
-#ifndef FUZZ_TEST_LOOP_COUNT
-#define FUZZ_TEST_LOOP_COUNT 65536
+#ifndef FUZZ_COUNT
+#define FUZZ_COUNT 65536
 #endif
 
 #ifndef FUZZ_SEED_OFFSET
@@ -258,7 +258,7 @@ int main(void)
             pcg32_srandom(
                 gmt->tm_mday + 100*gmt->tm_mon, gmt->tm_year + FUZZ_SEED_OFFSET);
         }
-        const unsigned loop_count = FUZZ_TEST_LOOP_COUNT;
+        const unsigned loop_count = FUZZ_COUNT;
         const char* random_format(char conversion_type);
 
         gp_test("Random formats with random values");
