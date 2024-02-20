@@ -1072,27 +1072,68 @@ pf_d2exp_buffered_n(
     if (fmt_is_g && ! (exp < -4 || exp >= (int32_t)precision))
         return pf_d2fixed_buffered_n(result, n, fmt, d);
 
-    if (stored_digits != 0)
+    if ( ! printDecimalPoint)
     {
-        if (printDecimalPoint)
-            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
-        else
-            push_char(&out, '0' + all_digits[0]);
-
-        for (size_t i = 1; i < digits_length - 1; i++)
-            pf_append_nine_digits(&out, all_digits[i]);
-
-        if (all_digits[digits_length - 1] == 0)
-            pad(&out, '0', maximum);
-        else
-            pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
+        push_char(&out, '0' + all_digits[0]);
     }
-    else
+    else if ( ! fmt_is_g)
     {
-        if (printDecimalPoint)
-            pf_append_d_digits(&out, maximum, all_digits[0]);
+        if (stored_digits != 0)
+        {
+            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
+
+            for (size_t i = 1; i < digits_length - 1; i++)
+                pf_append_nine_digits(&out, all_digits[i]);
+
+            if (all_digits[digits_length - 1] == 0)
+                pad(&out, '0', maximum);
+            else
+                pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
+        }
         else
-            push_char(&out, '0' + all_digits[0]);
+        {
+            pf_append_d_digits(&out, maximum, all_digits[0]);
+        }
+    }
+    else // 'g'
+    {
+        // Trim trailing zeroes
+        while (digits_length > 0)
+        {
+            if (all_digits[digits_length - 1] == 0)
+            {
+                digits_length--;
+                continue;
+            }
+            else
+            {
+                while (all_digits[digits_length - 1] != 0)
+                {
+                    if (all_digits[digits_length - 1] % 10 == 0)
+                        all_digits[digits_length - 1] /= 10;
+                    else
+                        goto end_trim_zeroes;
+                }
+            }
+        } end_trim_zeroes:
+
+        if (digits_length > 1)
+        {
+            pf_append_d_digits(&out, first_available_digits, all_digits[0]);
+
+            for (size_t i = 1; i < digits_length - 1; i++)
+                pf_append_nine_digits(&out, all_digits[i]);
+
+            if (all_digits[digits_length - 1] != 0)
+                pf_append_c_digits(&out, maximum, all_digits[digits_length - 1]);
+        }
+        else
+        {
+            if (all_digits[0] >= 10)
+                pf_append_d_digits(&out, maximum, all_digits[0]);
+            else
+                push_char(&out, '0' + all_digits[0]);
+        }
     }
 
     const bool uppercase =

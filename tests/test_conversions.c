@@ -126,10 +126,15 @@ int main(void)
             expect_str(buf, "120");
             gp_expect(return_value == strlen("120"), (return_value));
 
-            f = 30.1;
+            f = 30.9;
             return_value = pf_gtoa(SIZE_MAX, buf, f);
-            expect_str(buf, "30.1");
-            gp_expect(return_value == strlen("30.1"), (return_value));
+            expect_str(buf, "30.9");
+            gp_expect(return_value == strlen("30.9"), (return_value));
+
+            f = 0.000001;
+            return_value = pf_gtoa(SIZE_MAX, buf, f);
+            expect_str(buf, "1e-06");
+            gp_expect(return_value == strlen("1e-06"), (return_value));
         }
 
         // TODO NAN
