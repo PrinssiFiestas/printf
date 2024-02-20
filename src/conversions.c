@@ -728,6 +728,10 @@ pf_d2fixed_buffered_n(
 
     if (round_up)
     {
+        uint32_t last_real_mag;
+        if (fmt_is_g && is_zero)
+            last_real_mag = decimalLength9(all_digits[1]);
+
         all_digits[digits_length - 1] += 1;
 
         if (all_digits[digits_length - 1] == last_digit_magnitude)
@@ -752,8 +756,15 @@ pf_d2fixed_buffered_n(
         if (round_up)
             all_digits[0] += 1;
 
-        if (round_up && fmt_is_g && is_zero)
-            maximum--;
+        if (fmt_is_g && is_zero)
+        {
+            if (round_up) { // 0.xxx turned to 1.xxx
+                maximum--;
+            } else if (decimalLength9(all_digits[1]) > last_real_mag) {
+                maximum--;
+                all_digits[1] /= 10;
+            }
+        }
     }
 
     // Start writing digits for integer part
