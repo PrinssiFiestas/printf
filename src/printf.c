@@ -328,10 +328,13 @@ static unsigned add_padding(
 
 
 
+// ------------------------------
+// String functtions
+
 int pf_vsnprintf(
-    char out_buf[static 1],
+    char* restrict out_buf,
     const size_t max_size,
-    const char format[static 1],
+    const char format[restrict static 1],
     va_list _args)
 {
     struct PFString out = { out_buf, .capacity = max_size };
@@ -424,18 +427,14 @@ int pf_vsnprintf(
     return out.length;
 }
 
-int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args)
+int pf_vsprintf(
+    char buf[restrict static 1], const char fmt[restrict static 1], va_list args)
 {
-    // Some implementations of snprintf() and strfromd() don't accept sizes
-    // larger than SIZE_MAX/2. Also the return value which is written
-    // characters is int and INT_MAX < SIZE_MAX in most systems. This means that
-    // correctness was never achievable in the first place so let's just settle
-    // with INT_MAX.
-    return pf_vsnprintf(buf, INT_MAX, fmt, args);
+    return pf_vsnprintf(buf, SIZE_MAX, fmt, args);
 }
 
 __attribute__((format (printf, 2, 3)))
-int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
+int pf_sprintf(char buf[restrict static 1], const char fmt[restrict static 1], ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -445,7 +444,8 @@ int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
 }
 
 __attribute__((format (printf, 3, 4)))
-int pf_snprintf(char buf[static 1], size_t n, const char fmt[static 1], ...)
+int pf_snprintf(
+    char* restrict buf, const size_t n, const char fmt[restrict static 1], ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -453,3 +453,61 @@ int pf_snprintf(char buf[static 1], size_t n, const char fmt[static 1], ...)
     va_end(args);
     return written;
 }
+
+// ------------------------------
+// IO functtions
+
+#define PAGE_SIZE 4096
+#define BUF_SIZE (PAGE_SIZE + sizeof(""))
+
+int pf_vfprintf(
+    FILE stream[restrict static 1], const char fmt[restrict static 1], va_list args)
+{
+    char buf[BUF_SIZE];
+    char* pbuf = buf;
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    const int out_length = pf_vsnprintf(buf, BUF_SIZE, fmt, args);
+    if (out_length >= (int)BUF_SIZE) // try again
+    {
+        pbuf = malloc(out_length + sizeof(""));
+        pf_vsprintf(pbuf, fmt, args_copy);
+    }
+    fwrite(pbuf, sizeof(char), out_length, stream);
+
+    if (pbuf != buf)
+        free(pbuf);
+    va_end(args_copy);
+    return out_length;
+}
+
+int pf_vprintf(
+    const char fmt[restrict static 1], va_list args)
+{
+    return pf_vfprintf(stdout, fmt, args);
+}
+
+__attribute__((format (printf, 1, 2)))
+int pf_printf(
+    const char fmt[restrict static 1], ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int n = pf_vfprintf(stdout, fmt, args);
+    va_end(args);
+    return n;
+}
+
+__attribute__((format (printf, 2, 3)))
+int pf_fprintf(
+    FILE stream[restrict static 1], const char fmt[restrict static 1], ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int n = pf_vfprintf(stream, fmt, args);
+    va_end(args);
+    return n;
+}
+
+

@@ -3,7 +3,6 @@
 
 #include <gpc/attributes.h>
 #include <stdio.h>
-#define __STDC_WANT_IEC_60559_BFP_EXT__
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
@@ -19,13 +18,28 @@
 #define MAX_DIGITS ((CHAR_BIT * sizeof(uintmax_t) * 3) / 8)
 #endif//
 
-int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args);
-int pf_vsnprintf(char buf[static 1], size_t, const char fmt[static 1], va_list args);
+int pf_vprintf(
+    const char fmt[restrict static 1], va_list args);
+int pf_vfprintf(
+    FILE stream[restrict static 1], const char fmt[restrict static 1], va_list args);
+int pf_vsprintf(
+    char buf[restrict static 1], const char fmt[restrict static 1], va_list args);
+int pf_vsnprintf(
+    char* restrict buf, size_t, const char fmt[restrict static 1], va_list args);
+
+__attribute__((format (printf, 1, 2)))
+int pf_printf(
+    const char fmt[restrict static 1], ...);
 
 __attribute__((format (printf, 2, 3)))
-int pf_sprintf(char buf[static 1], const char fmt[static 1], ...);
+int pf_fprintf(
+    FILE stream[restrict static 1], const char fmt[restrict static 1], ...);
+
+__attribute__((format (printf, 2, 3)))
+int pf_sprintf(char buf[restrict static 1], const char fmt[restrict static 1], ...);
 
 __attribute__((format (printf, 3, 4)))
-int pf_snprintf(char buf[static 1], size_t, const char fmt[static 1], ...);
+int pf_snprintf(
+    char* restrict buf, size_t, const char fmt[restrict static 1], ...);
 
 #endif // PRINTF_H_INCLUDED
