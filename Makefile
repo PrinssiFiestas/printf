@@ -70,6 +70,8 @@ build/$(TARGET_DEBUG): $(DEBUG_OBJS)
 # $(patsubst %.h, , $?) fixes bug in Make which randomly substitutes $? with
 # other dependencies. Also touching test source file was the easiest way to
 # fool Make to rebuild the corresponding executable with correct dependencies.
+# None of this works across systems though. Just rebuild the whole thing in case
+# of bugs. This isn't Rust, your library will be built before dinner.
 $(OBJS): build/%.o : src/%.c
 	@mkdir -p build
 	$(CC) $(AUTO_GEN_DEPS) -c $(CFLAGS) $(patsubst %.h, ,$?) -o $@

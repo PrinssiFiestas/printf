@@ -6,7 +6,7 @@ int main(void)
     gp_suite("Format parsing");
     {
         PFFormatSpecifier fmt =
-            scan_format_string("blah blah %#035.721hhg blah", NULL);
+            pf_scan_format_string("blah blah %#035.721hhg blah", NULL);
 
         gp_test("Format string");
         {

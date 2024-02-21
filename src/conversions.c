@@ -1,3 +1,7 @@
+// MIT License
+// Copyright (c) 2023 Lauri Lorenzo Fiestas
+// https://github.com/PrinssiFiestas/printf/blob/main/LICENSE.md
+
 #include <printf/conversions.h>
 #include "d2s_full_table.h"
 #include "ryu.h"

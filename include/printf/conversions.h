@@ -1,3 +1,7 @@
+// MIT License
+// Copyright (c) 2023 Lauri Lorenzo Fiestas
+// https://github.com/PrinssiFiestas/printf/blob/main/LICENSE.md
+
 #ifndef CONVERSIONS_H_INCLUDED
 #define CONVERSIONS_H_INCLUDED 1
 

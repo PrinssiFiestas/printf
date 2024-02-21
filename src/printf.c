@@ -1,3 +1,7 @@
+// MIT License
+// Copyright (c) 2023 Lauri Lorenzo Fiestas
+// https://github.com/PrinssiFiestas/printf/blob/main/LICENSE.md
+
 #include <printf/printf.h>
 #include <printf/format_scanning.h>
 #include <printf/conversions.h>
@@ -342,7 +346,7 @@ int pf_vsnprintf(
 
     while (1)
     {
-        const PFFormatSpecifier fmt = scan_format_string(format, &args);
+        const PFFormatSpecifier fmt = pf_scan_format_string(format, &args);
         if (fmt.string == NULL)
             break;
 

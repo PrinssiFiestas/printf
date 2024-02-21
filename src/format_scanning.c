@@ -1,8 +1,12 @@
+// MIT License
+// Copyright (c) 2023 Lauri Lorenzo Fiestas
+// https://github.com/PrinssiFiestas/printf/blob/main/LICENSE.md
+
 #include <printf/format_scanning.h>
 #include <string.h>
 
 PFFormatSpecifier
-scan_format_string(
+pf_scan_format_string(
     const char fmt_string[static 1],
     pf_va_list* va_args)
 {

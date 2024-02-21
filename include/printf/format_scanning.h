@@ -1,3 +1,7 @@
+// MIT License
+// Copyright (c) 2023 Lauri Lorenzo Fiestas
+// https://github.com/PrinssiFiestas/printf/blob/main/LICENSE.md
+
 #ifndef FORMAT_SCANNING_H_INCLUDED
 #define FORMAT_SCANNING_H_INCLUDED 1
 
@@ -52,7 +56,7 @@ typedef struct pf_va_list
 } pf_va_list;
 
 PFFormatSpecifier
-scan_format_string(
+pf_scan_format_string(
     const char fmt_string[static 1], // should be null-terminated
     pf_va_list* asterisks); // optional
 
