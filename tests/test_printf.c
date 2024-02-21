@@ -271,7 +271,7 @@ int main(void)
                     i++) {
                     *i = pcg32_random();
                 }
-                const char* all_specs = "diouxXeEfFgGaAcsp"; // exept 'n'
+                const char* all_specs = "diouxXeEfFgGcsp"; // exept 'n'
                 const char random_specifier =
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
@@ -305,7 +305,7 @@ int main(void)
                     buf_std_return_value = snprintf(
                         buf_std, size, fmt, (intptr_t)random_bytes);
                 }
-                else if (strchr("eEfFgGaA", random_specifier) != NULL) // float
+                else if (strchr("eEfFgG", random_specifier) != NULL) // float
                 {
                     _my_buf_return_value = pf_snprintf(
                         buf, size, fmt, *(double*)&random_bytes);
@@ -452,8 +452,9 @@ const char* random_format(char conversion_type)
     switch (conversion_type)
     {
         // signed conversions
-        case 'd': case 'i': case 'a': case 'A':
-        case 'e': case 'E': case 'f': case 'F':
+        case 'd': case 'i':
+        case 'f': case 'F':
+        case 'e': case 'E':
         case 'g': case 'G':
             strcat(flags, "0 +");
             if ( ! (conversion_type == 'd' || conversion_type == 'i'))

@@ -267,13 +267,6 @@ static unsigned write_p(
     return out->length - original_length;
 }
 
-static inline void
-progress(char* out_buf[static 1], unsigned written[static 1], unsigned u)
-{
-    *written += u;
-    *out_buf += u;
-};
-
 static unsigned write_f(
     struct PFString out[static 1],
     struct MiscData md[static 1],
@@ -289,151 +282,6 @@ static unsigned write_f(
     md->is_nan_or_inf = isnan(f) || isinf(f);
 
     return written_by_conversion;
-}
-
-static unsigned write_other_float(
-    struct PFString out[static 1],
-    struct MiscData md[static 1],
-    pf_va_list args[static 1],
-    const PFFormatSpecifier fmt)
-{
-    char* const start = out->data + out->length;
-    const size_t original_length = out->length;
-
-    // strfromd() doesn't take flags or field width so fmt.string needs to be
-    // trimmed.
-    char simplified_fmt[sizeof("%.llf") + MAX_DIGITS] = "%";
-    const char* ffmt = fmt.string + strcspn(fmt.string, ".aAeEfFgG");
-    memcpy(
-        simplified_fmt + strlen("%"),
-        ffmt,
-        fmt.string + fmt.string_length - ffmt);
-
-    double f = va_arg(args->list, double);
-
-    if (!signbit(f) && fmt.flag.plus)
-    {
-        push_char(out, '+');
-        md->has_sign = true;
-    }
-    else if (!signbit(f) && fmt.flag.space)
-    {
-        push_char(out, ' ');
-        md->has_sign = true;
-    }
-    else if (signbit(f))
-        md->has_sign = true;
-
-    out->length += strfromd(
-        out->data + out->length, capacity_left(*out), simplified_fmt, f);
-
-    md->is_nan_or_inf = isnan(f) || isinf(f);
-    if ((fmt.conversion_format == 'a' || fmt.conversion_format == 'A') &&
-        ! md->is_nan_or_inf)
-        md->has_0x = true;
-
-    if (fmt.flag.hash && ! md->is_nan_or_inf)
-    {
-        // Better not to use math functions due to floating point errors. All we
-        // care about is did strfromd() write a decimal point or not.
-        //char* decimal_point = memchr(start, '.', written);
-        // UNSAFE fix this!
-        char* decimal_point = memchr(start, '.', out->length - original_length);
-        const bool is_whole_num = ! decimal_point;
-        const bool has_sign = strchr("+ -", start[0]) != NULL;
-        //char* exponent = memchr(start, 'e', written);
-        //UNSAFE fix this!
-        char* exponent = memchr(start, 'e', out->length - original_length);
-        if ( ! exponent) // try again
-            //exponent = memchr(start, 'E', written);
-            //UNSAFE fix this!
-            exponent = memchr(start, 'E', out->length - original_length);
-
-        if ( ! decimal_point) // write point
-        {
-            if (exponent)
-            {
-                // memmove(exponent + strlen("."), exponent, out_buf - exponent);
-                // (decimal_point = exponent)[0] = '.';
-                // exponent += strlen(".");
-                memmove(exponent + strlen("."), exponent,
-                    out->data + out->length - exponent - !capacity_left(*out));
-                (decimal_point = exponent)[0] = '.';
-                exponent += strlen(".");
-                out->length++;
-            }
-            else
-            {
-                //(decimal_point = out_buf)[0] = '.';
-                decimal_point = out->data + out->length; // is this safe??
-                push_char(out, '.');
-            }
-            //progress(&out_buf, &written, strlen("."));
-
-        }
-        // OLD IMPLEMENTATION, GET RID OF THESE. Just write directly to out.
-        char* out_buf = out->data + out->length; // <---------------------------
-        unsigned written = out->length - original_length; // <------------------
-        const unsigned TEMP_written_original = written; // <--------------------
-
-        out_buf[0] = '\0'; // for strspn()
-
-        if (fmt.conversion_format == 'g' || fmt.conversion_format == 'G')
-        {
-            unsigned significant_digits_written = 0;
-            if (is_whole_num)
-            {
-                significant_digits_written =
-                    strspn(start + has_sign, "0123456789");
-            }
-            else if (start[0 + has_sign] == '0' && start[1 + has_sign] == '.')
-            { // number is less than 0 and leading zeroes should be ignored
-                const char* significant_digits_start = decimal_point + strlen(".");
-                while (significant_digits_start[0] == '0')
-                    significant_digits_start++;
-
-                significant_digits_written =
-                    strspn(significant_digits_start, "0123456789");
-            }
-            else // non-whole number with absolute value larger than 0
-            {
-                significant_digits_written =
-                    strspn(start + has_sign, ".0123456789") - strlen(".");
-            }
-
-            const unsigned precision = fmt.precision.option == PF_SOME ?
-                fmt.precision.width :
-                6/*default %g precision*/;
-
-            if (precision > significant_digits_written) // write trailing zeroes
-            {
-                const unsigned diff = precision - significant_digits_written;
-                // ---------------------------
-                //
-                // Exponent may be moved out of bounds when writing comma. Here
-                // it may cause problems and need to be fixed!
-                //
-                // --------------------------
-                if (exponent) // make room for zeroes
-                    memmove(exponent + diff, exponent, out_buf - exponent);
-
-                char* end_of_digits = decimal_point + strlen(".");
-                end_of_digits += strspn(end_of_digits, "0123456789");
-                // TODO use pad() instead!
-                for (size_t i = 0; i < diff; i++)
-                    end_of_digits[i] = '0';
-
-                progress(&out_buf, &written, diff);
-            }
-        }
-        out->length += written - TEMP_written_original;
-        return written;
-    }
-    //out->length += written - TEMP_written_original; // TODO REMOVE
-    //return written;
-
-    // NEW
-    return out->length - original_length;
 }
 
 static unsigned add_padding(
@@ -554,31 +402,6 @@ int pf_vsnprintf(
                     &out, &misc, &args, fmt);
                 break;
 
-            case 'a': case 'A':
-                if (sizeof(long double) != sizeof(double) && (
-                    fmt.length_modifier == 'L' ||
-                    fmt.length_modifier == 'l' ||
-                    fmt.length_modifier == 'l' * 2))
-                    // TODO add switch to disable long double which would get
-                    // rid of snprintf() below reducing code size.
-                {
-                    char fmt_buf[32];
-                    memcpy( // to allow null-termination
-                        fmt_buf,
-                        fmt.string,
-                        min(fmt.string_length, sizeof(fmt_buf)-1));
-                    fmt_buf[sizeof(fmt_buf) - 1] = '\0';
-
-                    // Only hope to get any portability.
-                    out.length += snprintf(
-                        out.data + out.length, max_size,
-                        fmt_buf, va_arg(args.list, long double));
-                    continue;
-                }
-                written_by_conversion += write_other_float(
-                    &out, &misc, &args, fmt);
-                break;
-
             case '%':
                 push_char(&out, '%');
                 break;
@@ -612,7 +435,7 @@ int pf_vsprintf(char buf[static 1], const char fmt[static 1], va_list args)
     return pf_vsnprintf(buf, INT_MAX, fmt, args);
 }
 
-__attribute__ ((format (printf, 2, 3)))
+__attribute__((format (printf, 2, 3)))
 int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
 {
     va_list args;
@@ -622,7 +445,7 @@ int pf_sprintf(char buf[static 1], const char fmt[static 1], ...)
     return written;
 }
 
-__attribute__ ((format (printf, 3, 4)))
+__attribute__((format (printf, 3, 4)))
 int pf_snprintf(char buf[static 1], size_t n, const char fmt[static 1], ...)
 {
     va_list args;
