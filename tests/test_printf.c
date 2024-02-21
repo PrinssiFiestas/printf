@@ -275,8 +275,7 @@ int main(void)
                 const char random_specifier =
                     all_specs[pcg32_boundedrand(strlen(all_specs))];
                 const char* fmt = random_format(random_specifier);
-                //uint32_t size = pcg32_boundedrand(sizeof(buf));
-                uint32_t size = INT_MAX;
+                uint32_t size = pcg32_boundedrand(sizeof(buf));
 
                 int _my_buf_return_value = 0;
                 int buf_std_return_value = 0;

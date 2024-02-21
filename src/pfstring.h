@@ -71,7 +71,8 @@ insert_pad(
     const size_t max_move = len - overflowed;
     // End of ignoring i
 
-    memmove(me->data + i + n, me->data + i, max_move);
+    if (i + n < me->capacity)
+        memmove(me->data + i + n, me->data + i, max_move);
     memset(me->data + i, c, min(n, clipped_result_len));
 
     return n - overflowed;

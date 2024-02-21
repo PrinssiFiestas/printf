@@ -416,10 +416,9 @@ int pf_vsnprintf(
     }
 
     // Write what's left in format string
-    size_t tail_length = strlen(format);
-    memcpy(out.data + out.length, format, tail_length);
-    out.length += tail_length;
-    out.data[out.length] = '\0';
+    concat(&out, format, strlen(format));
+    if (max_size > 0)
+        out.data[capacity_left(out) ? out.length : out.capacity - 1] = '\0';
 
     va_end(args.list);
     return out.length;
