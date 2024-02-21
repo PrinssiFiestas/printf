@@ -1,13 +1,12 @@
 #include <printf/printf.h>
-#include "format_scanning.h"
-#include "conversions.h"
+#include <printf/format_scanning.h>
+#include <printf/conversions.h>
 #include "pfstring.h"
+
+#include <stdlib.h>
 #include <inttypes.h>
 #include <math.h>
-#include <ctype.h>
-
-// All write_*() family of functions returns what would be written without
-// limit, not what is actually written, just like snprintf(NULL, 0, ...).
+#include <limits.h>
 
 struct MiscData
 {
@@ -47,7 +46,7 @@ static uintmax_t get_uint(pf_va_list args[static 1], const PFFormatSpecifier fmt
 }
 
 static unsigned write_s(
-    struct PFString* out,
+    struct PFString out[static 1],
     pf_va_list args[static 1],
     const PFFormatSpecifier fmt)
 {

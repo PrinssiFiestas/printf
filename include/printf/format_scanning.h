@@ -1,12 +1,18 @@
 #ifndef FORMAT_SCANNING_H_INCLUDED
 #define FORMAT_SCANNING_H_INCLUDED 1
 
-#include <printf/printf.h>
+#include <stdbool.h>
+#include <stdarg.h>
 
+// Return type of scan_format_string(). Can also be filled manually to be used
+// with pf_strfromd().
 typedef struct PFFormatSpecifier
 {
-    const char* string;     // Pointer to '%', NULL if no format specifier.
-    unsigned string_length; // e.g. 4 for "%.3f"
+    // Pointer to the first occurrence of '%' in fmt_string passed to
+    // scan_format_string(). NULL if fmt_string does not contain a format
+    // specifier.
+    const char* string;
+    unsigned string_length;
 
     struct // flag
     {
@@ -35,7 +41,7 @@ typedef struct PFFormatSpecifier
     } precision;
 
     unsigned char length_modifier;   // any of "hljztL" or 2*'h' or 2*'l'
-    unsigned char conversion_format; // any of "csdioxXufFeEaAgGp". 'n' not supported.
+    unsigned char conversion_format; // any of "csdioxXufFeEgGp". 'n' not supported.
 } PFFormatSpecifier;
 
 // Portability wrapper.
@@ -47,7 +53,7 @@ typedef struct pf_va_list
 
 PFFormatSpecifier
 scan_format_string(
-    const char fmt_string[GP_STATIC sizeof("%i")],
+    const char fmt_string[static 1], // should be null-terminated
     pf_va_list* asterisks); // optional
 
 #endif // FORMAT_SCANNING_H_INCLUDED

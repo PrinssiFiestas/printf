@@ -1,8 +1,9 @@
 #ifndef CONVERSIONS_H_INCLUDED
 #define CONVERSIONS_H_INCLUDED 1
 
-#include <printf/printf.h>
-#include "format_scanning.h"
+#include <printf/format_scanning.h>
+#include <stdint.h>
+#include <stddef.h>
 
 // Returns number of characters written excluding null-terminator. Does not
 // write more than n characters.

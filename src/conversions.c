@@ -1,21 +1,28 @@
-#include "conversions.h"
+#include <printf/conversions.h>
 #include "d2s_full_table.h"
-#include <inttypes.h>
-#include <math.h>
-
 #include "ryu.h"
 #include "common.h"
 #include "digit_table.h"
 #include "d2fixed_full_table.h"
 #include "d2s_intrinsics.h"
-
 #include "pfstring.h"
+
+#include <inttypes.h>
+#include <math.h>
+#include <limits.h>
 
 #define DOUBLE_MANTISSA_BITS 52
 #define DOUBLE_EXPONENT_BITS 11
 #define DOUBLE_BIAS 1023
 
 #define POW10_ADDITIONAL_BITS 120
+
+// Max decimal digits in uintmax_t
+#if CHAR_BIT == 8
+#define MAX_DIGITS (sizeof(uintmax_t) * 3)
+#else
+#define MAX_DIGITS ((CHAR_BIT * sizeof(uintmax_t) * 3) / 8)
+#endif
 
 static void str_reverse_copy(
     char* restrict out,
@@ -636,7 +643,7 @@ pf_d2fixed_buffered_n(
             fract_leading_zeroes = 9 * i;
         }
 
-        uint32_t digits;
+        uint32_t digits = 0;
         for (; i < blocks; ++i) // store significant fractional digits
         {
             const int32_t j = ADDITIONAL_BITS_2 + (-e2 - 16 * idx);
@@ -728,7 +735,7 @@ pf_d2fixed_buffered_n(
 
     if (round_up)
     {
-        uint32_t last_real_mag;
+        uint32_t last_real_mag = 0;
         if (fmt_is_g && is_zero)
             last_real_mag = decimalLength9(all_digits[1]);
 

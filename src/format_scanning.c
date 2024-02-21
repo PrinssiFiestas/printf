@@ -1,8 +1,9 @@
-#include "format_scanning.h"
+#include <printf/format_scanning.h>
+#include <string.h>
 
 PFFormatSpecifier
 scan_format_string(
-    const char fmt_string[static sizeof("%i")],
+    const char fmt_string[static 1],
     pf_va_list* va_args)
 {
     PFFormatSpecifier fmt = { fmt_string };

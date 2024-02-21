@@ -2,6 +2,8 @@
 #define PFSTRING_H_INCLUDED
 
 #include <printf/printf.h>
+#include <string.h>
+#include <stdbool.h>
 
 struct PFString
 {

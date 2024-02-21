@@ -79,7 +79,7 @@ int main(void)
         {
             void* p = (void*)-1;
             uintptr_t u = (uintptr_t)p;
-            char _buf[MAX_DIGITS];
+            char _buf[sizeof(void*) * 3];
             const char* fmt =
                 UINTPTR_MAX == ULLONG_MAX ? "%#llx" :
                 UINTPTR_MAX == ULONG_MAX  ? "%#lx"  : "%#x";
@@ -306,10 +306,11 @@ int main(void)
                 }
                 else if (strchr("eEfFgG", random_specifier) != NULL) // float
                 {
+                    union { uint64_t u; double f; } punner = {.u = random_bytes };
                     _my_buf_return_value = pf_snprintf(
-                        buf, size, fmt, *(double*)&random_bytes);
+                        buf, size, fmt, punner.f);
                     buf_std_return_value = snprintf(
-                        buf_std, size, fmt, *(double*)&random_bytes);
+                        buf_std, size, fmt, punner.f);
                 }
                 else // integer
                 {
