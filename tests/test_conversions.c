@@ -118,8 +118,8 @@ int main(void)
         {
             f = 0.0;
             return_value = pf_gtoa(SIZE_MAX, buf, f);
-            expect_str(buf, "0.00000");
-            gp_expect(return_value == strlen("0.00000"), (return_value));
+            expect_str(buf, "0");
+            gp_expect(return_value == strlen("0"), (return_value));
 
             f = 120.0;
             return_value = pf_gtoa(SIZE_MAX, buf, f);

@@ -73,6 +73,18 @@ int main(void)
             sprintf(buf_std, "blah %g blah", -13.1);
             expect_str(buf, buf_std);
 
+            pf_sprintf(buf,  "%f", 0.);
+            sprintf(buf_std, "%f", 0.);
+            expect_str(buf, buf_std);
+            pf_sprintf(buf,  "%e", 0.);
+            sprintf(buf_std, "%e", 0.);
+            expect_str(buf, buf_std);
+            pf_sprintf(buf,  "%g", 0.);
+            sprintf(buf_std, "%g", 0.);
+            expect_str(buf, buf_std);
+            pf_sprintf(buf,  "%#g", 0.);
+            sprintf(buf_std, "%#g", 0.);
+            expect_str(buf, buf_std);
         }
 
         gp_test("%p");
