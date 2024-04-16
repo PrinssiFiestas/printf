@@ -5,6 +5,7 @@
 #ifndef FORMAT_SCANNING_H_INCLUDED
 #define FORMAT_SCANNING_H_INCLUDED 1
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdarg.h>
 
@@ -16,7 +17,7 @@ typedef struct PFFormatSpecifier
     // scan_format_string(). NULL if fmt_string does not contain a format
     // specifier.
     const char* string;
-    unsigned string_length;
+    size_t string_length;
 
     struct // flag
     {
@@ -58,6 +59,6 @@ typedef struct pf_va_list
 PFFormatSpecifier
 pf_scan_format_string(
     const char fmt_string[static 1], // should be null-terminated
-    pf_va_list* asterisks); // optional
+    pf_va_list* optional_asterisks);
 
 #endif // FORMAT_SCANNING_H_INCLUDED
