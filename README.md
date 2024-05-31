@@ -1,5 +1,7 @@
 # Printf
 
+This project is no longer maintained. It's purpose was to be the guts for `gp_assert()` and `gp_print()` family of functions in [libGPC](https://github.com/PrinssiFiestas/libGPC) which provide much better performance, type safety, and more.
+
 Clone of `printf()`, `fprintf()`, `sprintf()`, `snprintf()`, and their 'v' variants. Implements close to all features required by ANSI C.
 
 All provided functions live in `pf_` namespace. Check the headers in `include/printf/`.
