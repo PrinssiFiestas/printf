@@ -21,8 +21,8 @@ int main(void)
     {
         gp_test("%c");
         {
-            pf_sprintf(buf, "blah %c blah", 'x');
-            expect_str(buf, "blah x blah");
+            pf_sprintf(buf, "blah %c blah %lc", 'x', L'ö');
+            expect_str(buf, "blah x blah ö");
         }
 
         gp_test("%s");

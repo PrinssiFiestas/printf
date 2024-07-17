@@ -49,6 +49,44 @@ static uintmax_t get_uint(pf_va_list args[static 1], const PFFormatSpecifier fmt
     }
 }
 
+static unsigned write_wc(
+    struct PFString out[static 1],
+    pf_va_list args[static 1])
+{
+    uint8_t decoding[4];
+    size_t length;
+    uint32_t encoding = va_arg(args->list, unsigned);
+
+    if (encoding > 0x7F)
+    {
+        if (encoding < 0x800) {
+            decoding[0] = ((encoding & 0x000FC0) >> 6) | 0xC0;
+            decoding[1] = ((encoding & 0x00003F) >> 0) | 0x80;
+            length = 2;
+        } else if (encoding < 0x10000) {
+            decoding[0] = ((encoding & 0x03F000) >> 12) | 0xE0;
+            decoding[1] = ((encoding & 0x000FC0) >>  6) | 0x80;
+            decoding[2] = ((encoding & 0x00003F) >>  0) | 0x80;
+            length = 3;
+        } else {
+            decoding[0] = ((encoding & 0x1C0000) >> 18) | 0xF0;
+            decoding[1] = ((encoding & 0x03F000) >> 12) | 0x80;
+            decoding[2] = ((encoding & 0x000FC0) >>  6) | 0x80;
+            decoding[3] = ((encoding & 0x00003F) >>  0) | 0x80;
+            length = 4;
+        }
+    }
+    else
+    { // This weird control flow is somewhat faster for some reason.
+      // Maybe it's better for the branch predictor?
+        decoding[0] = encoding;
+        length = 1;
+    }
+
+    concat(out, (char*)decoding, length);
+    return length;
+}
+
 static unsigned write_s(
     struct PFString out[static 1],
     pf_va_list args[static 1],
@@ -361,9 +399,12 @@ int pf_vsnprintf(
         switch (fmt.conversion_format)
         {
             case 'c':
-                push_char(&out, (char)va_arg(args.list, int));
-                written_by_conversion = 1;
-                break;
+                if (fmt.length_modifier != 'l') {
+                    push_char(&out, (char)va_arg(args.list, int));
+                    written_by_conversion = 1;
+                } else {
+                    written_by_conversion += write_wc(&out, &args);
+                } break;
 
             case 's':
                 written_by_conversion += write_s(
