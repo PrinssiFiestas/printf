@@ -27,17 +27,37 @@ int main(void)
             len = pf_utoa(-1, buf, 12345);
             expect_str(buf, "12345");
             gp_expect(len == 5, (len));
+
+            len = pf_utoa(-1, buf, 0);
+            expect_str(buf, "0");
+            gp_expect(len == 1, (len));
+
+            len = pf_utoa(-1, buf, -1);
+            expect_str(buf, "18446744073709551615");
+            gp_expect(len == strlen("18446744073709551615"), (len));
         }
 
         gp_test("itoa");
         {
+            len = pf_itoa(-1, buf, -123456);
+            expect_str(buf, "-123456");
+            gp_expect(len == 7, (len));
+
             len = pf_itoa(-1, buf, 123456);
             expect_str(buf, "123456");
             gp_expect(len == 6, (len));
 
-            len = pf_itoa(-1, buf, -123456);
-            expect_str(buf, "-123456");
-            gp_expect(len == 7, (len));
+            len = pf_itoa(-1, buf, 0);
+            expect_str(buf, "0");
+            gp_expect(len == 1, (len));
+
+            len = pf_itoa(-1, buf, LLONG_MIN);
+            expect_str(buf, "-9223372036854775808");
+            gp_expect(len == strlen("-9223372036854775808"), (len));
+
+            len = pf_itoa(-1, buf, LLONG_MAX);
+            expect_str(buf, "9223372036854775807");
+            gp_expect(len == strlen("9223372036854775807"), (len));
         }
 
         char buf2[MAX_DIGITS] = "";
