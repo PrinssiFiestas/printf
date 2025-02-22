@@ -51,8 +51,7 @@ unsigned pf_utoa(const size_t n, char* out, uintmax_t x)
     {
         const uint32_t olength = decimalLength9(x);
         append_n_digits(olength, x, out);
-        if (olength < n)
-            out[olength] = '\0';
+        out[olength] = '\0';
         return olength;
     }
 
