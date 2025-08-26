@@ -60,20 +60,10 @@ pf_scan_format_string(
         }
         else if ('1' <= *c && *c <= '9') // can't be 0. Leading 0 is a flag.
         {
-            const char* num = c;
-            unsigned digits = 0;
             do {
-                digits++;
-                c++;
+                fmt.field.width = 10*fmt.field.width + *c - '0';
+                ++c;
             } while ('0' <= *c && *c <= '9');
-
-            unsigned digit = 1;
-            while (digits)
-            {
-                fmt.field.width += (num[digits - 1] - '0') * digit;
-                digit *= 10;
-                digits--;
-            }
         }
     }
 
@@ -102,21 +92,10 @@ pf_scan_format_string(
         else
         {
             fmt.precision.option = PF_SOME;
-            const char* num = c;
-            unsigned digits = 0;
-
             while ('0' <= *c && *c <= '9')
             {
-                digits++;
+                fmt.precision.width = 10*fmt.precision.width + *c - '0';
                 c++;
-            }
-
-            unsigned digit = 1;
-            while (digits)
-            {
-                fmt.precision.width += (num[digits - 1] - '0') * digit;
-                digit *= 10;
-                digits--;
             }
         }
     }
