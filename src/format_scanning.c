@@ -21,6 +21,7 @@ pf_scan_format_string(
     {
         fmt.string_length = 2;
         fmt.conversion_format = '%';
+        return fmt;
     }
 
     // Iterator
